@@ -167,8 +167,8 @@ class DataStore:
         return [{
             "id":          "db_default",
             "name":        "default",
-            "description": "Default demo database",
-            "collections": _seed_default_collections(),
+            "description": "Default empty database",
+            "collections": {"users": [], "posts": [], "messages": [], "orgs": []},
             "schema":      None,
             "createdAt":   int(time.time()),
         }]
@@ -207,93 +207,3 @@ class DataStore:
               {"id": "s15", "name": "Inline Type Condition", "category": "Advanced",
              "code": '? node (id "n_001") {\n  id\n  ... on User { name email }\n  ... on Post { title score }\n}'},
         ]
-
-
-# ─── Seed data generator ──────────────────────────────────────────────────────
-
-def _seed_default_collections() -> dict:
-    now = int(time.time())
-    first_names = ["Alice","Bob","Carol","David","Eva","Frank","Grace","Henry","Iris","Jack"]
-    last_names  = ["Chen","Smith","Jones","Park","Martinez","Taylor","Brown","Wright","Singh","Lopez"]
-    cities      = ["London","Berlin","Tokyo","Seoul","Paris","Austin","Nairobi","Lisbon","Toronto","Sydney"]
-    themes      = ["dark","light","system"]
-    plans       = ["free","pro","business","enterprise"]
-    statuses    = ["draft","published","archived"]
-    tags_pool   = ["piql","api","stream","schema","agent","perf","security","ui"]
-
-    users = []
-    for i in range(50):
-        fn = first_names[i % len(first_names)]
-        ln = last_names[(i * 3) % len(last_names)]
-        users.append({
-            "id": f"u_{i+1:04d}",
-            "name": f"{fn} {ln}",
-            "email": f"{fn.lower()}.{ln.lower()}{i+1}@example.com",
-            "age": 21 + (i % 28),
-            "role": ["viewer","editor","admin"][i % 3],
-            "active": i % 4 != 0,
-            "createdAt": now - i * 86400,
-            "settings": {
-                "theme": themes[i % 3],
-                "notify": i % 2 == 0,
-                "timezone": ["UTC","Europe/Berlin","Asia/Tokyo","America/Chicago"][i % 4],
-            },
-            "profile": {
-                "bio": f"{fn} builds demo data set {i+1}",
-                "location": cities[i % len(cities)],
-            },
-            "stats": {
-                "postsCount": 3 + i,
-                "followers": 100 + i * 17,
-                "following": 20 + i * 3,
-            },
-        })
-
-    posts = []
-    prefixes = ["Intro","Schema","Streams","Security","Performance"]
-    for i in range(50):
-        author = users[i % len(users)]
-        tag_count = 2 + (i % 4)
-        posts.append({
-            "id": f"p_{i+1:04d}",
-            "title": f"{prefixes[i % len(prefixes)]} to Piql #{i+1}",
-            "body": f"Demo post #{i+1} for the workbench.",
-            "score": round(6.5 + (i % 9) * 0.7, 1),
-            "status": statuses[i % len(statuses)],
-            "tags": tags_pool[i % len(tags_pool): i % len(tags_pool) + tag_count] or tags_pool[:tag_count],
-            "authorId": author["id"],
-            "author": {"id": author["id"], "name": author["name"], "email": author["email"]},
-            "createdAt": now - i * 5400,
-            "updatedAt": now - i * 1800,
-            "metrics": {"views": 120 + i * 45, "likes": 10 + i * 3, "shares": i % 12},
-        })
-
-    messages = []
-    for i in range(50):
-        author = users[i % len(users)]
-        messages.append({
-            "id": f"m_{i+1:04d}",
-            "body": f"Message {i+1}: Hello from the Piql demo workspace.",
-            "authorId": author["id"],
-            "threadId": f"t_{(i % 10)+1:03d}",
-            "createdAt": now - i * 240,
-            "flags": {"pinned": i % 9 == 0, "read": i % 2 == 0},
-        })
-
-    orgs = []
-    for i in range(50):
-        owner = users[i % len(users)]
-        orgs.append({
-            "id": f"o_{i+1:04d}",
-            "name": f"Piql Org {i+1}",
-            "plan": plans[i % len(plans)],
-            "memberCount": 5 + i,
-            "createdAt": now - i * 604800,
-            "owner": {"id": owner["id"], "name": owner["name"]},
-            "billing": {
-                "currency": ["USD","EUR","GBP","JPY"][i % 4],
-                "monthly": 49 + i * 5,
-            },
-        })
-
-    return {"users": users, "posts": posts, "messages": messages, "orgs": orgs}
