@@ -1,0 +1,3120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Piql Workbench</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Inter:wght@300;400;500;600;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-0: #0d1117;
+    --bg-1: #161b22;
+    --bg-2: #1c2333;
+    --bg-3: #21262d;
+    --bg-4: #2d333b;
+    --border: #30363d;
+    --border-light: #3d444d;
+    --text-0: #e6edf3;
+    --text-1: #adbac7;
+    --text-2: #768390;
+    --text-3: #545d68;
+    --accent: #2f81f7;
+    --accent-dim: #1f6feb;
+    --accent-glow: rgba(47,129,247,0.15);
+    --green: #3fb950;
+    --green-dim: #238636;
+    --red: #f85149;
+    --orange: #e3b341;
+    --purple: #bc8cff;
+    --cyan: #39c5cf;
+    --pink: #f778ba;
+
+    /* syntax */
+    --syn-method: #f78166;
+    --syn-target: #79c0ff;
+    --syn-field: #adbac7;
+    --syn-arg-key: #cae8ff;
+    --syn-arg-val: #a5d6ff;
+    --syn-string: #a8d8a8;
+    --syn-number: #f0a57a;
+    --syn-directive: #d2a8ff;
+    --syn-type: #79c0ff;
+    --syn-comment: #8b949e;
+    --syn-keyword: #ff7b72;
+    --syn-operator: #ff7b72;
+    --syn-variable: #ffa657;
+  }
+
+  html, body {
+    height: 100%;
+    font-family: 'Inter', sans-serif;
+    background: var(--bg-0);
+    color: var(--text-0);
+    font-size: 13px;
+    overflow: hidden;
+  }
+
+  /* ===== LAYOUT ===== */
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* Titlebar */
+  #titlebar {
+    height: 38px;
+    background: var(--bg-1);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 10px;
+    flex-shrink: 0;
+    -webkit-app-region: drag;
+    user-select: none;
+  }
+  #titlebar .logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    -webkit-app-region: no-drag;
+  }
+  .logo-icon {
+    width: 22px; height: 22px;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: white;
+  }
+  .logo-text {
+    font-size: 13px; font-weight: 700;
+    background: linear-gradient(90deg, var(--accent), var(--purple));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    letter-spacing: 0.5px;
+  }
+  .logo-version {
+    font-size: 10px; color: var(--text-3);
+    padding: 1px 5px; background: var(--bg-3); border-radius: 3px;
+    -webkit-text-fill-color: var(--text-3);
+  }
+  #titlebar .spacer { flex: 1; }
+  #titlebar .status-bar {
+    display: flex; align-items: center; gap: 12px;
+    font-size: 11px; color: var(--text-2);
+    -webkit-app-region: no-drag;
+  }
+  .titlebar-btn {
+    background: var(--bg-3);
+    color: var(--text-1);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    line-height: 1.2;
+  }
+  .titlebar-btn:hover {
+    color: var(--text-0);
+    border-color: var(--accent);
+  }
+  .status-indicator { display: flex; align-items: center; gap: 5px; }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .status-dot.connected { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .status-dot.disconnected { background: var(--text-3); }
+
+  /* Main layout */
+  #main-layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ===== SIDEBAR ===== */
+  #sidebar {
+    width: 240px;
+    min-width: 180px;
+    max-width: 320px;
+    background: var(--bg-1);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+
+  .sidebar-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .sidebar-tab {
+    flex: 1; padding: 8px 4px;
+    text-align: center; font-size: 10px; font-weight: 600;
+    color: var(--text-2); cursor: pointer;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+  }
+  .sidebar-tab:hover { color: var(--text-1); }
+  .sidebar-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .sidebar-panel { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+  .sidebar-panel.active { display: flex; }
+
+  .sidebar-header {
+    padding: 8px 12px;
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: var(--text-2);
+    display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .sidebar-header button {
+    background: none; border: none; color: var(--accent);
+    cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px;
+  }
+  .sidebar-header button:hover { color: var(--text-0); }
+
+  .sidebar-scroll { flex: 1; overflow-y: auto; }
+  .sidebar-scroll::-webkit-scrollbar { width: 4px; }
+  .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+  .sidebar-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* DB Tree */
+  .db-item {
+    padding: 6px 12px; cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--text-1);
+    transition: background 0.1s;
+  }
+  .db-item:hover { background: var(--bg-3); }
+  .db-item.active { background: var(--accent-glow); color: var(--accent); }
+  .db-item-icon { font-size: 13px; flex-shrink: 0; }
+  .db-item-name { flex: 1; }
+  .db-item-badge {
+    font-size: 9px; padding: 1px 5px;
+    background: var(--bg-4); border-radius: 3px; color: var(--text-2);
+  }
+  .db-collection { padding-left: 12px; }
+  .collection-item {
+    padding: 4px 12px 4px 24px; cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--text-2);
+    transition: background 0.1s;
+  }
+  .collection-item:hover { background: var(--bg-3); color: var(--text-1); }
+  .collection-item.active-table {
+    background: var(--accent-glow);
+    color: var(--accent);
+    border-left: 2px solid var(--accent);
+    padding-left: 22px;
+  }
+
+  /* Snippets */
+  .snippet-category {
+    padding: 6px 12px 2px;
+    font-size: 9px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: var(--text-3);
+  }
+  .snippet-item {
+    padding: 5px 12px; cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; color: var(--text-1);
+    transition: background 0.1s;
+    border-left: 2px solid transparent;
+  }
+  .snippet-item:hover { background: var(--bg-3); border-left-color: var(--accent); }
+  .snippet-icon { font-size: 11px; flex-shrink: 0; }
+  .snippet-name { flex: 1; }
+
+  /* History */
+  .history-item {
+    padding: 6px 12px; cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+  .history-item:hover { background: var(--bg-3); }
+  .history-time { font-size: 10px; color: var(--text-3); margin-bottom: 2px; }
+  .history-preview {
+    font-size: 11px; color: var(--text-2);
+    font-family: 'JetBrains Mono', monospace;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .history-status { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; }
+  .history-status.ok { background: var(--green); }
+  .history-status.err { background: var(--red); }
+
+  /* ===== CENTER: QUERY EDITOR ===== */
+  #center-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Query Tabs */
+  #tab-bar {
+    display: flex;
+    align-items: stretch;
+    background: var(--bg-1);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    flex-shrink: 0;
+    height: 36px;
+  }
+  #tab-bar::-webkit-scrollbar { height: 0; }
+  .query-tab {
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 14px;
+    font-size: 12px; color: var(--text-2);
+    cursor: pointer; white-space: nowrap;
+    border-right: 1px solid var(--border);
+    border-bottom: 2px solid transparent;
+    transition: all 0.1s; flex-shrink: 0;
+    min-width: 100px;
+  }
+  .query-tab:hover { color: var(--text-1); background: var(--bg-2); }
+  .query-tab.active { color: var(--text-0); background: var(--bg-0); border-bottom-color: var(--accent); }
+  .tab-method-badge {
+    font-size: 9px; font-weight: 700; padding: 1px 4px; border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .tab-method-badge.read { background: rgba(47,129,247,0.2); color: var(--accent); }
+  .tab-method-badge.create { background: rgba(63,185,80,0.2); color: var(--green); }
+  .tab-method-badge.update { background: rgba(227,179,65,0.2); color: var(--orange); }
+  .tab-method-badge.delete { background: rgba(248,81,73,0.2); color: var(--red); }
+  .tab-method-badge.subscribe { background: rgba(188,140,255,0.2); color: var(--purple); }
+  .tab-close {
+    margin-left: auto; width: 14px; height: 14px; border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; color: var(--text-3); transition: all 0.1s;
+  }
+  .tab-close:hover { background: var(--bg-4); color: var(--text-0); }
+  .new-tab-btn {
+    padding: 0 12px; color: var(--text-3); cursor: pointer;
+    display: flex; align-items: center; font-size: 18px;
+    transition: color 0.1s;
+  }
+  .new-tab-btn:hover { color: var(--accent); }
+
+  /* Editor toolbar */
+  #editor-toolbar {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 12px;
+    background: var(--bg-1);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+  }
+  .toolbar-btn {
+    display: flex; align-items: center; gap: 5px;
+    padding: 4px 10px; border-radius: 5px; border: none;
+    cursor: pointer; font-size: 12px; font-family: 'Inter', sans-serif;
+    transition: all 0.15s; font-weight: 500;
+  }
+  .toolbar-btn.run {
+    background: var(--green-dim); color: white;
+  }
+  .toolbar-btn.run:hover { background: var(--green); }
+  .toolbar-btn.run:active { transform: scale(0.97); }
+  .toolbar-btn.secondary {
+    background: var(--bg-3); color: var(--text-1);
+    border: 1px solid var(--border);
+  }
+  .toolbar-btn.secondary:hover { background: var(--bg-4); color: var(--text-0); }
+  .toolbar-btn.danger {
+    background: transparent; color: var(--red);
+    border: 1px solid transparent;
+  }
+  .toolbar-btn.danger:hover { border-color: var(--red); background: rgba(248,81,73,0.1); }
+  .toolbar-separator { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+  .toolbar-spacer { flex: 1; }
+  .toolbar-info { font-size: 11px; color: var(--text-2); display: flex; align-items: center; gap: 10px; }
+  .toolbar-info kbd {
+    padding: 1px 5px; background: var(--bg-3); border: 1px solid var(--border);
+    border-radius: 3px; font-size: 10px; font-family: inherit;
+    color: var(--text-2);
+  }
+
+  /* Editor area */
+  #editor-area {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* Line numbers + editor */
+  #editor-container {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+    background: var(--bg-0);
+  }
+
+  #line-numbers {
+    padding: 14px 0;
+    min-width: 44px;
+    background: var(--bg-0);
+    color: var(--text-3);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    text-align: right;
+    user-select: none;
+    border-right: 1px solid var(--border);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .line-number { padding: 0 10px; display: block; }
+  .line-number.active { color: var(--text-0); }
+
+  #code-wrapper {
+    flex: 1; position: relative; overflow: auto;
+  }
+  #code-wrapper::-webkit-scrollbar { width: 8px; height: 8px; }
+  #code-wrapper::-webkit-scrollbar-track { background: var(--bg-0); }
+  #code-wrapper::-webkit-scrollbar-thumb { background: var(--bg-4); border-radius: 4px; }
+
+  #highlight-layer {
+    position: absolute; top: 0; left: 0; right: 0;
+    padding: 14px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    white-space: pre;
+    pointer-events: none;
+    z-index: 1;
+    color: transparent;
+    min-width: 100%;
+    min-height: 100%;
+  }
+
+  #editor {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    padding: 14px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    background: transparent;
+    border: none; outline: none; resize: none;
+    color: var(--text-0);
+    caret-color: var(--accent);
+    white-space: pre;
+    overflow: auto;
+    z-index: 2;
+    width: 100%; height: 100%;
+    spellcheck: false;
+  }
+  #editor::-webkit-scrollbar { display: none; }
+
+  /* Cursor line highlight */
+  .cursor-line-highlight {
+    position: absolute;
+    left: 0; right: 0;
+    background: rgba(47,129,247,0.05);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ===== RESULTS PANE ===== */
+  #results-pane {
+    height: 320px;
+    min-height: 150px;
+    background: var(--bg-1);
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+
+  #results-tabs {
+    display: flex; align-items: center;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0; height: 34px;
+    padding: 0 12px;
+    gap: 4px;
+  }
+  .result-tab {
+    padding: 4px 12px; font-size: 11px; font-weight: 500;
+    border-radius: 4px; cursor: pointer; color: var(--text-2);
+    transition: all 0.1s;
+  }
+  .result-tab:hover { color: var(--text-1); background: var(--bg-3); }
+  .result-tab.active { color: var(--text-0); background: var(--bg-3); }
+  .result-tab .badge {
+    display: inline-block; margin-left: 5px;
+    padding: 0 5px; background: var(--accent); color: white;
+    border-radius: 8px; font-size: 9px; font-weight: 700;
+  }
+  .results-info {
+    margin-left: auto; font-size: 11px;
+    color: var(--text-2); display: flex; gap: 10px;
+  }
+  .results-info span { display: flex; align-items: center; gap: 4px; }
+  .results-info .ok-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+  .results-info .err-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red); }
+
+  #results-content {
+    flex: 1; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .result-panel { display: none; flex: 1; overflow: auto; }
+  .result-panel.active { display: block; }
+  .result-panel::-webkit-scrollbar { width: 6px; height: 6px; }
+  .result-panel::-webkit-scrollbar-track { background: transparent; }
+  .result-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* JSON output */
+  #result-json {
+    padding: 12px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; line-height: 1.6;
+    white-space: pre;
+    color: var(--text-0);
+  }
+
+  /* Table output */
+  #result-table { padding: 8px; }
+  .data-table {
+    width: 100%; border-collapse: collapse;
+    font-size: 12px;
+  }
+  .data-table th {
+    padding: 6px 12px; text-align: left;
+    background: var(--bg-3); color: var(--text-2);
+    font-weight: 600; font-size: 11px;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0;
+    white-space: nowrap;
+  }
+  .data-table td {
+    padding: 5px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-1);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    max-width: 300px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .data-table tr:hover td { background: var(--bg-3); }
+  .td-null { color: var(--text-3); font-style: italic; }
+  .td-bool-true { color: var(--green); }
+  .td-bool-false { color: var(--red); }
+  .td-number { color: var(--syn-number); }
+  .td-string { color: var(--syn-string); }
+  .td-object { color: var(--text-2); font-style: italic; }
+
+  /* Tree output */
+  #result-tree { padding: 8px 12px; }
+  .tree-node { margin: 1px 0; }
+  .tree-key { color: var(--syn-arg-key); }
+  .tree-str { color: var(--syn-string); }
+  .tree-num { color: var(--syn-number); }
+  .tree-bool { color: var(--syn-keyword); }
+  .tree-null { color: var(--text-3); }
+  .tree-meta { color: var(--cyan); }
+  .tree-indent { display: inline-block; width: 16px; }
+  .tree-toggle { cursor: pointer; color: var(--text-2); user-select: none; }
+  .tree-toggle:hover { color: var(--text-0); }
+
+  /* Query info panel */
+  #result-info {
+    padding: 12px 16px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+  }
+  .info-card {
+    background: var(--bg-2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px;
+  }
+  .info-card-label { font-size: 10px; color: var(--text-3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .info-card-value { font-size: 18px; font-weight: 700; color: var(--text-0); margin-top: 4px; font-family: 'JetBrains Mono', monospace; }
+  .info-card-value.green { color: var(--green); }
+  .info-card-value.red { color: var(--red); }
+  .info-card-value.blue { color: var(--accent); }
+  .info-card-value.purple { color: var(--purple); }
+
+  /* Error display */
+  .error-block {
+    margin: 10px 14px; padding: 12px 16px;
+    background: rgba(248,81,73,0.1); border: 1px solid rgba(248,81,73,0.3);
+    border-radius: 6px;
+  }
+  .error-title { color: var(--red); font-weight: 700; margin-bottom: 6px; font-size: 12px; }
+  .error-msg { color: var(--text-1); font-size: 12px; font-family: 'JetBrains Mono', monospace; }
+  .error-path { color: var(--text-2); font-size: 11px; margin-top: 4px; }
+  .error-hint { color: var(--cyan); font-size: 11px; margin-top: 3px; }
+
+  /* Empty state */
+  .empty-state {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    color: var(--text-3); gap: 8px; padding: 20px;
+  }
+  .empty-icon { font-size: 32px; opacity: 0.4; }
+  .empty-text { font-size: 13px; }
+  .empty-sub { font-size: 11px; }
+
+  /* ===== RIGHT PANEL ===== */
+  #right-panel {
+    width: 200px;
+    min-width: 160px;
+    background: var(--bg-1);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+
+  .right-section {
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .right-section-title {
+    padding: 8px 12px 6px;
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: var(--text-3);
+  }
+
+  /* Cost meter */
+  .cost-display {
+    padding: 6px 12px 10px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .cost-bar-bg {
+    height: 6px; background: var(--bg-3); border-radius: 3px;
+    overflow: hidden;
+  }
+  .cost-bar-fill {
+    height: 100%; border-radius: 3px;
+    transition: width 0.4s, background 0.4s;
+  }
+  .cost-numbers { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-2); }
+  .cost-value { font-size: 22px; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--text-0); }
+
+  /* Schema explorer */
+  #schema-panel { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+  .schema-type {
+    border-bottom: 1px solid var(--border);
+  }
+  .schema-type-header {
+    padding: 6px 12px; cursor: pointer;
+    font-size: 11px; font-weight: 600; color: var(--accent);
+    display: flex; align-items: center; gap: 6px;
+    transition: background 0.1s;
+  }
+  .schema-type-header:hover { background: var(--bg-2); }
+  .schema-type-header .toggle { color: var(--text-3); font-size: 10px; }
+  .schema-fields { display: none; padding: 0 12px 6px; }
+  .schema-type.open .schema-fields { display: block; }
+  .schema-type.open .toggle { transform: rotate(90deg); }
+  .schema-field {
+    display: flex; align-items: center; gap: 6px;
+    padding: 2px 0; font-size: 10px;
+    cursor: pointer;
+  }
+  .schema-field:hover .sf-name { color: var(--text-0); }
+  .sf-name { color: var(--text-1); flex: 1; font-family: 'JetBrains Mono', monospace; }
+  .sf-type { color: var(--purple); font-size: 9px; }
+  .sf-required { color: var(--red); font-size: 9px; }
+
+  /* ===== FEATURE PANEL ===== */
+  #feature-panel {
+    width: 0;
+    min-width: 0;
+    max-width: 520px;
+    background: var(--bg-1);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+    position: relative;
+    transition: width 0.2s ease, min-width 0.2s ease;
+  }
+
+  #feature-panel.open {
+    width: 420px;
+    min-width: 320px;
+  }
+
+  .fp-resize {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    cursor: col-resize;
+    background: transparent;
+    transition: background 0.15s;
+  }
+  .fp-resize:hover { background: var(--accent); }
+
+  .fp-titlebar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 38px;
+    padding: 0 12px 0 14px;
+    background: var(--bg-2);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .fp-icon { font-size: 14px; flex-shrink: 0; }
+  .fp-title {
+    flex: 1;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-0);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .fp-close {
+    background: none;
+    border: none;
+    color: var(--text-2);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: background 0.1s, color 0.1s;
+    flex-shrink: 0;
+  }
+  .fp-close:hover { background: var(--bg-4); color: var(--red); }
+
+  .fp-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    font-size: 12px;
+    color: var(--text-1);
+  }
+  .fp-body::-webkit-scrollbar { width: 4px; }
+  .fp-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .fp-section { margin-bottom: 18px; }
+  .fp-section-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-2);
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+  .fp-field { margin-bottom: 12px; }
+  .fp-label {
+    display: block;
+    font-size: 11px;
+    color: var(--text-2);
+    margin-bottom: 4px;
+    font-weight: 500;
+  }
+  .fp-input, .fp-select, .fp-textarea {
+    width: 100%;
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--text-0);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 6px 8px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .fp-input:focus, .fp-select:focus, .fp-textarea:focus { border-color: var(--accent); }
+  .fp-textarea {
+    resize: vertical;
+    min-height: 80px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .fp-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+  .fp-result {
+    background: var(--bg-0);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-1);
+    min-height: 80px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.6;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  .fp-result code {
+    background: var(--bg-3);
+    padding: 2px 4px;
+    border-radius: 3px;
+  }
+  .fp-badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .fp-badge.success { background: var(--green-dim); color: var(--green); }
+  .fp-badge.warning { background: rgba(227,179,65,0.15); color: var(--orange); }
+  .fp-badge.error { background: rgba(248,81,73,0.15); color: var(--red); }
+  .fp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+  }
+  .fp-link {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.01), transparent);
+    color: var(--text-0);
+    padding: 10px 12px;
+    text-align: left; cursor: pointer;
+    font-size: 13px; font-family: 'Inter', sans-serif; min-height: 58px;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+  }
+  .fp-link:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+    border-color: var(--accent);
+    color: var(--text-0);
+  }
+
+.fp-link .fp-link-title { font-weight: 700; color: var(--text-0); font-size: 13px; }
+.fp-link .fp-link-desc { color: var(--text-2); font-size: 12px; margin-top: 2px; }
+.fp-search {
+  display: flex; gap: 8px; align-items: center; margin-bottom: 12px;
+}
+.fp-search input {
+  flex: 1; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--bg-3); color: var(--text-0); outline: none; font-size: 13px;
+}
+.fp-category { margin-bottom: 14px; }
+.fp-category-header { display:flex; align-items:center; justify-content:space-between; gap:8px; cursor:pointer; }
+.fp-category-header .cat-title { font-weight:700; color:var(--text-2); font-size:11px; }
+.fp-category.open .fp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-top:8px; }
+.fp-empty { color: var(--text-3); font-size: 13px; padding: 12px 0; }
+
+  /* Inline autocomplete hint */
+  #autocomplete {
+    display: none;
+    position: absolute;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    min-width: 180px;
+    max-height: 160px;
+    overflow-y: auto;
+    z-index: 100;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  }
+  .ac-item {
+    padding: 5px 10px;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-1);
+    cursor: pointer;
+    display: flex; gap: 10px;
+    align-items: center;
+  }
+  .ac-item:hover, .ac-item.selected { background: var(--bg-4); color: var(--text-0); }
+  .ac-kind { font-size: 9px; color: var(--text-3); flex-shrink: 0; }
+
+  /* Resize handle */
+  .resize-handle {
+    background: transparent; cursor: row-resize;
+    height: 4px; flex-shrink: 0;
+    transition: background 0.1s;
+  }
+  .resize-handle:hover { background: var(--accent-dim); }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; display: none;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--bg-1); border: 1px solid var(--border);
+    border-radius: 10px; padding: 20px;
+    width: 480px; max-height: 80vh;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .modal-title { font-size: 15px; font-weight: 700; color: var(--text-0); }
+  .modal-body { flex: 1; overflow-y: auto; }
+  .modal-footer { display: flex; gap: 8px; justify-content: flex-end; }
+  .modal input, .modal select, .modal textarea {
+    width: 100%; padding: 7px 10px; background: var(--bg-0);
+    border: 1px solid var(--border); border-radius: 5px;
+    color: var(--text-0); font-family: 'Inter', sans-serif; font-size: 12px;
+    outline: none; transition: border-color 0.1s;
+  }
+  .modal input:focus, .modal select:focus, .modal textarea:focus {
+    border-color: var(--accent);
+  }
+  .modal label { display: block; font-size: 11px; color: var(--text-2); margin-bottom: 4px; font-weight: 500; }
+  .form-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+  .btn { padding: 7px 16px; border-radius: 5px; border: none; cursor: pointer; font-size: 12px; font-weight: 600; font-family: 'Inter', sans-serif; transition: all 0.15s; }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: var(--accent-dim); }
+  .btn-ghost { background: transparent; color: var(--text-1); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--bg-3); }
+  .btn-danger { background: var(--red); color: white; }
+  .btn-danger:hover { opacity: 0.85; }
+
+  /* Help panel */
+  .help-section { margin-bottom: 14px; }
+  .help-section h3 { font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
+  .help-grid { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; }
+  .help-code { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--syn-method); }
+  .help-desc { font-size: 11px; color: var(--text-1); }
+
+  /* Animations */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .loading-spin { animation: spin 1s linear infinite; display: inline-block; }
+  .fade-in { animation: fadeIn 0.2s ease; }
+
+  /* Scrollbar global */
+  * { scrollbar-width: thin; scrollbar-color: var(--bg-4) transparent; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Titlebar -->
+  <div id="titlebar">
+    <div class="logo">
+      <div class="logo-icon">N</div>
+      <div class="logo-text">Piql</div>
+      <div class="logo-version">Workbench v0.1</div>
+    </div>
+    <div class="spacer"></div>
+    <div class="status-bar">
+      <div class="status-indicator">
+        <div class="status-dot connected" id="conn-dot"></div>
+        <span id="conn-label">In-Memory DB</span>
+      </div>
+      <span id="exec-time-status"></span>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div id="main-layout">
+
+    <!-- Left Sidebar -->
+    <div id="sidebar">
+      <div class="sidebar-tabs">
+        <div class="sidebar-tab active" data-panel="databases" onclick="switchSidebarTab('databases')">DB</div>
+        <div class="sidebar-tab" data-panel="snippets" onclick="switchSidebarTab('snippets')">Snippets</div>
+        <div class="sidebar-tab" data-panel="history" onclick="switchSidebarTab('history')">History</div>
+      </div>
+
+      <!-- Databases panel -->
+      <div class="sidebar-panel active" id="panel-databases">
+        <div class="sidebar-header">
+          Databases
+          <button onclick="openPanel_createDatabase()" title="New Database">+</button>
+        </div>
+        <div class="sidebar-scroll" id="db-tree"></div>
+      </div>
+
+      <!-- Snippets panel -->
+      <div class="sidebar-panel" id="panel-snippets">
+        <div class="sidebar-header">
+          Snippets
+          <button onclick="openPanel_saveSnippet()" title="Save current query">+</button>
+        </div>
+        <div class="sidebar-scroll" id="snippets-list"></div>
+      </div>
+
+      <!-- History panel -->
+      <div class="sidebar-panel" id="panel-history">
+        <div class="sidebar-header">
+          History
+          <button onclick="clearHistory()" title="Clear history">✕</button>
+        </div>
+        <div class="sidebar-scroll" id="history-list"></div>
+      </div>
+    </div>
+
+    <!-- Center: Editor + Results -->
+    <div id="center-pane">
+
+      <!-- Tab bar -->
+      <div id="tab-bar">
+        <div class="new-tab-btn" onclick="addTab()" title="New Tab (Ctrl+T)">+</div>
+      </div>
+
+      <!-- Editor toolbar -->
+      <div id="editor-toolbar">
+        <button class="toolbar-btn run" onclick="runQuery()" id="run-btn">
+          <span>▶</span> Run
+        </button>
+        <button class="toolbar-btn secondary" onclick="formatQuery()">⇌ Format</button>
+        <button class="toolbar-btn secondary" onclick="explainQuery()">⚡ Explain</button>
+        <div class="toolbar-separator"></div>
+        <span class="table-breadcrumb" style="color: var(--text-2); font-size: 11px; padding: 0 8px; display: flex; align-items: center;">📋 None</span>
+        <div class="toolbar-separator"></div>
+        <button class="toolbar-btn secondary" onclick="insertTemplate('read')">? Read</button>
+        <button class="toolbar-btn secondary" onclick="insertTemplate('create')">+ Create</button>
+        <button class="toolbar-btn secondary" onclick="insertTemplate('update')">~ Update</button>
+        <button class="toolbar-btn secondary" onclick="insertTemplate('delete')">! Delete</button>
+        <button class="toolbar-btn secondary" onclick="insertTemplate('schema')">◈ Schema</button>
+        <div class="toolbar-separator"></div>
+        <button class="toolbar-btn danger" onclick="clearEditor()">✕ Clear</button>
+        <div class="toolbar-spacer"></div>
+        <div class="toolbar-info">
+          <span>🔗 Use menu: <kbd>AI</kbd> | <kbd>Security</kbd> | <kbd>Team</kbd> for features</span>
+        </div>
+      </div>
+
+      <!-- Editor -->
+      <div id="editor-area">
+        <div id="editor-container">
+          <div id="line-numbers"></div>
+          <div id="code-wrapper">
+            <div id="highlight-layer"></div>
+            <textarea id="editor" placeholder="Write your Piql query here...
+  
+  Examples:
+    ? user (id &quot;u_001&quot;) { name email createdAt }
+    + post { title: &quot;Hello&quot; authorId: $userId } { id createdAt }
+    ~ post (id &quot;p_001&quot;) { status: published } { id updatedAt }
+    ! post (id &quot;p_001&quot;) { id }
+    >> messages($channelId: &quot;ch_1&quot;) { id body createdAt }
+  
+  Press Ctrl+Enter to execute.
+  " spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resize handle -->
+      <div class="resize-handle" id="results-resize"></div>
+
+      <!-- Results pane -->
+      <div id="results-pane">
+        <div id="results-tabs">
+          <div class="result-tab active" onclick="switchResultTab('json')">Response</div>
+          <div class="result-tab" onclick="switchResultTab('table')">Table <span class="badge" id="row-count-badge" style="display:none"></span></div>
+          <div class="result-tab" onclick="switchResultTab('tree')">Tree</div>
+          <div class="result-tab" onclick="switchResultTab('info')">Query Info</div>
+          <div class="result-tab" onclick="switchResultTab('warnings')">Warnings <span class="badge" id="warning-count-badge" style="display:none"></span></div>
+          <div class="results-info" id="results-meta" style="display:none">
+            <span><span class="ok-dot" id="res-status-dot"></span><span id="res-status-text"></span></span>
+            <span>⏱ <span id="res-took"></span></span>
+            <span>💰 Cost: <span id="res-cost"></span></span>
+          </div>
+        </div>
+        <div id="results-content">
+          <div class="result-panel active" id="panel-json">
+            <div class="empty-state">
+              <div class="empty-icon">⬡</div>
+              <div class="empty-text">No results yet</div>
+              <div class="empty-sub">Write a query and press Run (Ctrl+Enter)</div>
+            </div>
+          </div>
+          <div class="result-panel" id="panel-table">
+            <div id="result-table"></div>
+          </div>
+          <div class="result-panel" id="panel-tree">
+            <div id="result-tree"></div>
+          </div>
+          <div class="result-panel" id="panel-info">
+            <div id="result-info"></div>
+          </div>
+          <div class="result-panel" id="panel-warnings">
+            <div id="result-warnings"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right panel -->
+    <div id="right-panel">
+      <!-- Cost meter -->
+      <div class="right-section">
+        <div class="right-section-title">Cost Estimator</div>
+        <div class="cost-display">
+          <div class="cost-value" id="cost-value">—</div>
+          <div class="cost-bar-bg">
+            <div class="cost-bar-fill" id="cost-bar" style="width:0%;background:var(--green)"></div>
+          </div>
+          <div class="cost-numbers">
+            <span>0</span><span id="cost-limit-label">/ 100</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Schema explorer -->
+      <div class="right-section-title" style="padding-top:8px">Schema Explorer</div>
+      <div id="schema-panel">
+        <div class="sidebar-scroll" id="schema-tree"></div>
+      </div>
+    </div>
+
+    <!-- Feature panel -->
+    <div id="feature-panel" aria-hidden="true">
+      <div class="fp-resize" id="fp-resize-handle"></div>
+      <div class="fp-titlebar">
+        <span class="fp-icon" id="fp-icon">⚙️</span>
+        <span class="fp-title" id="fp-title">Feature</span>
+        <button class="fp-close" id="fp-close" title="Close panel (Escape)">✕</button>
+      </div>
+      <div class="fp-body" id="fp-body">
+        <!-- content injected by featurePanel.open() -->
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Modals -->
+
+<!-- Snippet modal removed; replaced by feature panel flow. -->
+
+<div class="modal-overlay" id="modal-help">
+  <div class="modal" style="width:560px;max-height:85vh">
+    <div class="modal-title">Piql Syntax Reference</div>
+    <div class="modal-body">
+      <div class="help-section">
+        <h3>Methods</h3>
+        <div class="help-grid">
+          <span class="help-code">?</span><span class="help-desc">Read / Fetch (GET equivalent)</span>
+          <span class="help-code">+</span><span class="help-desc">Create (POST equivalent)</span>
+          <span class="help-code">~</span><span class="help-desc">Update / Patch (PATCH equivalent)</span>
+          <span class="help-code">!</span><span class="help-desc">Delete (DELETE equivalent)</span>
+          <span class="help-code">&gt;&gt;</span><span class="help-desc">Subscribe / Stream</span>
+          <span class="help-code">&lt;&lt;</span><span class="help-desc">Publish / Push</span>
+        </div>
+      </div>
+      <div class="help-section">
+        <h3>Basic Query Structure</h3>
+          <pre style="font-size:11px;color:var(--text-1);background:var(--bg-0);padding:10px;border-radius:5px;overflow-x:auto">? user (id "u_001")
+  { name email createdAt }
+
++ post {
+  title: "Hello"
+  authorId: $userId
+} { id createdAt }
+
+~ post (id "p_001") {
+  status: published
+} { id updatedAt }
+
+! post (id "p_001") { id }</pre>
+      </div>
+      <div class="help-section">
+        <h3>Type System</h3>
+        <div class="help-grid">
+          <span class="help-code">str</span><span class="help-desc">UTF-8 string</span>
+          <span class="help-code">int</span><span class="help-desc">64-bit signed integer</span>
+          <span class="help-code">float</span><span class="help-desc">64-bit IEEE 754</span>
+          <span class="help-code">bool</span><span class="help-desc">Boolean</span>
+          <span class="help-code">uid</span><span class="help-desc">UUID v7 (time-ordered)</span>
+          <span class="help-code">ts</span><span class="help-desc">Unix timestamp (microsecond)</span>
+          <span class="help-code">!</span><span class="help-desc">Non-null / required modifier</span>
+          <span class="help-code">?</span><span class="help-desc">Nullable / optional modifier</span>
+          <span class="help-code">[T]</span><span class="help-desc">List of T</span>
+        </div>
+      </div>
+      <div class="help-section">
+        <h3>Directives</h3>
+        <div class="help-grid">
+          <span class="help-code">@cache(ttl:N)</span><span class="help-desc">Cache response for N seconds</span>
+          <span class="help-code">@auth(role:X)</span><span class="help-desc">Require auth role X</span>
+          <span class="help-code">@cost(max:N)</span><span class="help-desc">Cost limit for field</span>
+          <span class="help-code">@cols</span><span class="help-desc">Columnar response encoding</span>
+          <span class="help-code">@rate(max:N per:s)</span><span class="help-desc">Rate limit for subscriptions</span>
+        </div>
+      </div>
+      <div class="help-section">
+        <h3>Advanced Features</h3>
+        <div class="help-grid">
+          <span class="help-code">$limit N</span><span class="help-desc">Restrict result size to N rows</span>
+          <span class="help-code">$offset N</span><span class="help-desc">Skip first N rows (cannot combine with $after)</span>
+          <span class="help-code">$after "cursor"</span><span class="help-desc">Cursor-based pagination from opaque token</span>
+          <span class="help-code">$sort field desc</span><span class="help-desc">Sort by field, direction asc/desc</span>
+          <span class="help-code">$fields N</span><span class="help-desc">Limit top-level returned fields per row</span>
+          <span class="help-code">$var</span><span class="help-desc">Variable reference</span>
+          <span class="help-code">=&gt;</span><span class="help-desc">Computed / derived field</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-help')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-explain">
+  <div class="modal" style="width:520px">
+    <div class="modal-title">Query Explanation</div>
+    <div class="modal-body" id="explain-content" style="font-size:12px;color:var(--text-1);line-height:1.7"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-explain')">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const ipc = window.api || (function(){
+  return {
+    invoke: async () => { throw new Error('IPC not available'); },
+    on: () => {},
+    send: () => {},
+    copy: (t) => { try { navigator.clipboard.writeText(String(t)); return true; } catch { return false; } }
+  };
+})();
+
+// ===== STATE =====
+let tabs = [];
+let activeTabId = null;
+let databases = [];
+let activeDbId = null;
+let history = [];
+let snippets = [];
+let lastResult = null;
+let activeResultTab = 'json';
+let selectedTable = null;
+let selectedDatabase = null;
+
+const featurePanel = {
+  el: null,
+  title: null,
+  icon: null,
+  body: null,
+  currentId: null,
+  open(id, icon, title, html) {
+    this.currentId = id;
+    this.icon.textContent = icon;
+    this.title.textContent = title;
+    this.body.innerHTML = sanitizeHTML(html);
+    this.el.classList.add('open');
+    this.el.setAttribute('aria-hidden', 'false');
+    const firstInput = this.body.querySelector('input, select, textarea, button');
+    if (firstInput) setTimeout(() => firstInput.focus(), 220);
+  },
+  close() {
+    this.el.classList.remove('open');
+    this.el.setAttribute('aria-hidden', 'true');
+    this.currentId = null;
+    setTimeout(() => { this.body.innerHTML = ''; }, 220);
+  },
+  setResult(html) {
+    const result = this.body.querySelector('#fp-result-area');
+    if (result) result.innerHTML = sanitizeHTML(html);
+  },
+};
+
+// ===== INIT =====
+async function init() {
+  databases = await ipc.invoke('db:load');
+  history = await ipc.invoke('history:load');
+  snippets = await ipc.invoke('snippets:load');
+
+  if (!databases.length) {
+    databases = [
+      { id: 'db_default', name: 'default', description: 'Default in-memory database', collections: { users: [], posts: [], messages: [] }, schema: null, createdAt: Date.now() }
+    ];
+  }
+  activeDbId = databases[0].id;
+
+  addTab();
+  renderDbTree();
+  renderSnippets();
+  renderHistory();
+  renderSchema();
+
+  featurePanel.el = document.getElementById('feature-panel');
+  featurePanel.title = document.getElementById('fp-title');
+  featurePanel.icon = document.getElementById('fp-icon');
+  featurePanel.body = document.getElementById('fp-body');
+
+  console.log('[Init] featurePanel initialized:', {
+    el: !!featurePanel.el,
+    title: !!featurePanel.title,
+    icon: !!featurePanel.icon,
+    body: !!featurePanel.body,
+  });
+
+  document.getElementById('fp-close').addEventListener('click', () => featurePanel.close());
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && featurePanel.currentId) {
+      featurePanel.close();
+    }
+  });
+
+  (function setupFeaturePanelResize() {
+    const handle = document.getElementById('fp-resize-handle');
+    const panel = document.getElementById('feature-panel');
+    let dragging = false;
+    let startX = 0;
+    let startW = 0;
+
+    handle.addEventListener('mousedown', (e) => {
+      dragging = true;
+      startX = e.clientX;
+      startW = panel.offsetWidth;
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    });
+    document.addEventListener('mousemove', (e) => {
+      if (!dragging) return;
+      const delta = startX - e.clientX;
+      const newW = Math.max(280, Math.min(720, startW + delta));
+      panel.style.width = newW + 'px';
+      panel.style.minWidth = Math.max(280, Math.min(720, newW)) + 'px';
+    });
+    document.addEventListener('mouseup', () => {
+      dragging = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    });
+  })();
+
+  // Set up editor
+  const editor = document.getElementById('editor');
+  editor.addEventListener('input', onEditorInput);
+  editor.addEventListener('keydown', onEditorKeydown);
+  editor.addEventListener('scroll', syncEditorScroll);
+  editor.addEventListener('click', updateLineHighlight);
+  editor.addEventListener('keyup', updateLineHighlight);
+
+  updateLineNumbers();
+  updateCostEstimate();
+
+  // IPC events from menu
+  ipc.on('new-tab', addTab);
+  ipc.on('execute-query', runQuery);
+  ipc.on('format-query', formatQuery);
+  ipc.on('clear-editor', clearEditor);
+  ipc.on('show-help', () => openPanel_help());
+  ipc.on('request-save', async () => {
+    const content = getEditorContent();
+    await ipc.invoke('file:save', { content });
+  });
+  ipc.on('open-file', (_, { content } = {}) => {
+    setEditorContent(content || '');
+  });
+
+  // Generic panel opener: main process can send 'open-panel' with an id
+  ipc.on('open-panel', (_, id) => {
+    console.log('[IPC] open-panel received:', id);
+    const map = {
+      featureHub: openPanel_featureHub,
+      help: openPanel_help,
+      explain: () => explainQuery(),
+      saveSnippet: openPanel_saveSnippet,
+      createDatabase: openPanel_createDatabase,
+      createTeam: openPanel_createTeam,
+      createWorkspace: openPanel_createWorkspace,
+      teamAnalytics: openPanel_teamAnalytics,
+      orchestrate: openPanel_multiOrchestration,
+      aiDebug: openPanel_aiDebug,
+      aiNL: openPanel_aiNLToQuery,
+      aiOptimize: openPanel_aiOptimize,
+      obsLatency: openPanel_obsLatency,
+      obsGraph: openPanel_obsExecutionGraph,
+      secDepth: openPanel_secDepth,
+      secAudit: openPanel_secAuditLog,
+      sdkGenerate: openPanel_sdkGenerate,
+      sdkWebhook: openPanel_sdkWebhook,
+      vizGraph: openPanel_vizGraph,
+      vizERD: openPanel_vizERD,
+      fieldUsage: openPanel_fieldUsageAnalytics,
+      schemaDiff: openPanel_schemaDiff,
+    };
+    if (map[id]) {
+      try {
+        console.log('[IPC] Calling function for:', id);
+        map[id]();
+        console.log('[IPC] Function completed for:', id);
+      }
+      catch (e) { 
+        console.error('[IPC] Error calling panel function:', id, e);
+      }
+    } else {
+      console.warn('[IPC] No panel mapped for id:', id);
+    }
+  });
+
+  // Results pane resize
+  setupResizeHandle();
+}
+
+// ===== TABS =====
+function addTab(content = '') {
+  const id = 'tab_' + Date.now();
+  tabs.push({ id, title: 'Query ' + (tabs.length + 1), content, method: null });
+  activeTabId = id;
+  renderTabs();
+  setEditorContent(content);
+}
+
+function switchTab(id) {
+  if (activeTabId) {
+    const t = tabs.find(t => t.id === activeTabId);
+    if (t) t.content = getEditorContent();
+  }
+  activeTabId = id;
+  const t = tabs.find(t => t.id === id);
+  if (t) setEditorContent(t.content);
+  renderTabs();
+  clearResults();
+}
+
+function closeTab(id, e) {
+  e.stopPropagation();
+  tabs = tabs.filter(t => t.id !== id);
+  if (!tabs.length) addTab();
+  else if (activeTabId === id) switchTab(tabs[tabs.length-1].id);
+  renderTabs();
+}
+
+function renderTabs() {
+  const bar = document.getElementById('tab-bar');
+  const newBtn = bar.querySelector('.new-tab-btn');
+  bar.querySelectorAll('.query-tab').forEach(el => el.remove());
+
+  tabs.forEach(tab => {
+    const el = document.createElement('div');
+    el.className = 'query-tab' + (tab.id === activeTabId ? ' active' : '');
+    el.onclick = () => switchTab(tab.id);
+
+    const methodBadge = tab.method ? `<span class="tab-method-badge ${tab.method}">${getMethodSymbol(tab.method)}</span>` : '';
+    el.innerHTML = `${methodBadge}<span>${escapeHtml(tab.title)}</span><span class="tab-close" onclick="closeTab('${tab.id}',event)">×</span>`;
+    bar.insertBefore(el, newBtn);
+  });
+}
+
+function getMethodSymbol(m) {
+  return { read:'?', create:'+', update:'~', delete:'!', subscribe:'>>' }[m] || m;
+}
+
+// ===== EDITOR =====
+function getEditorContent() { return document.getElementById('editor').value; }
+function setEditorContent(text) {
+  document.getElementById('editor').value = text;
+  onEditorInput();
+}
+
+function onEditorInput() {
+  updateLineNumbers();
+  updateHighlight();
+  updateCostEstimate();
+  updateLineHighlight();
+  // Save to active tab
+  const t = tabs.find(t => t.id === activeTabId);
+  if (t) {
+    t.content = getEditorContent();
+    // Update tab title and method from first line
+    const lines = t.content.split('\n');
+    const firstMeaningful = lines.find(l => l.trim() && !l.trim().startsWith('#'));
+    if (firstMeaningful) {
+      const m = firstMeaningful.trim();
+      if (m.startsWith('?')) t.method = 'read';
+      else if (m.startsWith('+')) t.method = 'create';
+      else if (m.startsWith('~')) t.method = 'update';
+      else if (m.startsWith('!')) t.method = 'delete';
+      else if (m.startsWith('>>')) t.method = 'subscribe';
+      else t.method = null;
+
+      // Generate title from target
+      const targetMatch = m.match(/^[?+~!>]+\s*([\w.]+)/);
+      if (targetMatch) {
+        t.title = targetMatch[1].charAt(0).toUpperCase() + targetMatch[1].slice(1) + ' Query';
+      }
+    }
+    renderTabs();
+  }
+}
+
+function onEditorKeydown(e) {
+  // Ctrl+Enter to run
+  if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); runQuery(); return; }
+
+  // Tab key - insert 2 spaces
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const el = e.target;
+    const start = el.selectionStart;
+    const val = el.value;
+    el.value = val.slice(0, start) + '  ' + val.slice(el.selectionEnd);
+    el.selectionStart = el.selectionEnd = start + 2;
+    onEditorInput();
+    return;
+  }
+
+  // Auto-pair
+  const pairs = { '{':'}', '(':')', '[':']', '"':'"' };
+  if (pairs[e.key] && !e.ctrlKey && !e.metaKey) {
+    const el = e.target;
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    if (start === end) {
+      e.preventDefault();
+      const val = el.value;
+      el.value = val.slice(0, start) + e.key + pairs[e.key] + val.slice(end);
+      el.selectionStart = el.selectionEnd = start + 1;
+      onEditorInput();
+    }
+  }
+}
+
+function syncEditorScroll() {
+  const editor = document.getElementById('editor');
+  const hl = document.getElementById('highlight-layer');
+  const ln = document.getElementById('line-numbers');
+  hl.style.top = -editor.scrollTop + 'px';
+  ln.scrollTop = editor.scrollTop;
+}
+
+function updateLineNumbers() {
+  const editor = document.getElementById('editor');
+  const lines = editor.value.split('\n');
+  const ln = document.getElementById('line-numbers');
+  const curLine = getEditorLine();
+  ln.innerHTML = lines.map((_, i) =>
+    `<span class="line-number ${i+1 === curLine ? 'active' : ''}">${i+1}</span>`
+  ).join('');
+}
+
+function getEditorLine() {
+  const editor = document.getElementById('editor');
+  return editor.value.substr(0, editor.selectionStart).split('\n').length;
+}
+
+function updateLineHighlight() {
+  updateLineNumbers();
+}
+
+// ===== SYNTAX HIGHLIGHTING =====
+function updateHighlight() {
+  const editor = document.getElementById('editor');
+  const hl = document.getElementById('highlight-layer');
+  hl.innerHTML = highlightPiql(editor.value);
+}
+
+function highlightPiql(code) {
+  const lines = code.split('\n');
+  return lines.map(line => highlightLine(line)).join('\n');
+}
+
+function highlightLine(line) {
+  // Escape HTML
+  const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  // Comment line
+  if (line.trim().startsWith('#')) {
+    return `<span style="color:var(--syn-comment)">${esc(line)}</span>`;
+  }
+
+  // Type definition
+  if (line.trim().startsWith('type ')) {
+    return line.replace(/^(\s*)(type)(\s+)(\w+)(.*)$/, (_, sp, kw, s1, name, rest) =>
+      esc(sp) + `<span style="color:var(--syn-keyword)">${esc(kw)}</span>` + esc(s1) + `<span style="color:var(--syn-type)">${esc(name)}</span>` + highlightFieldDef(esc(rest))
+    );
+  }
+
+  let result = '';
+  let i = 0;
+  const chars = line.split('');
+
+  // Check for method at start
+  const stripped = line.trimStart();
+  const indent = line.length - stripped.length;
+  const indentStr = esc(line.slice(0, indent));
+
+  if (stripped.startsWith('>>') || stripped.startsWith('<<')) {
+    return indentStr + `<span style="color:var(--syn-method)">${esc(stripped.slice(0,2))}</span>` + highlightRest(stripped.slice(2));
+  }
+  if ('?+~!'.includes(stripped[0]) && stripped.length > 0) {
+    return indentStr + `<span style="color:var(--syn-method)">${esc(stripped[0])}</span>` + highlightRest(stripped.slice(1));
+  }
+
+  return highlightRest(line);
+}
+
+function highlightRest(s) {
+  const esc = t => t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return s
+    // Directives
+    .replace(/@(\w+)/g, (m, n) => `<span style="color:var(--syn-directive)">@${esc(n)}</span>`)
+    // Variables
+    .replace(/\$(\w+)/g, (m, n) => `<span style="color:var(--syn-variable)">$${esc(n)}</span>`)
+    // Strings
+    .replace(/"([^"]*)"/g, (m, s) => `<span style="color:var(--syn-string)">"${esc(s)}"</span>`)
+    // Numbers
+    .replace(/\b(\d+(?:\.\d+)?)\b/g, (m, n) => `<span style="color:var(--syn-number)">${n}</span>`)
+    // Keywords
+    .replace(/\b(true|false|null|enum|uid|str|int|float|bool|ts|bin|any|void)\b/g, (m, k) => `<span style="color:var(--syn-keyword)">${k}</span>`)
+    // Operators =>
+    .replace(/(=>|->|\.\.)/g, m => `<span style="color:var(--syn-operator)">${esc(m)}</span>`)
+    // Brackets
+    .replace(/([{}[\]()])/g, m => `<span style="color:var(--text-2)">${m}</span>`)
+    // Target names (words followed by args or fields)
+    .replace(/\b([a-zA-Z_][a-zA-Z0-9_]*)\b(?=\s*[({])/g, (m, n) => `<span style="color:var(--syn-target)">${esc(n)}</span>`)
+    // Colons (separators)
+    .replace(/:/g, '<span style="color:var(--text-2)">:</span>');
+}
+
+function highlightFieldDef(s) {
+  return s.replace(/(!|\?)/g, m => `<span style="color:var(--syn-method)">${m}</span>`);
+}
+
+// ===== COST ESTIMATOR =====
+function updateCostEstimate() {
+  const code = getEditorContent().trim();
+  if (!code) { document.getElementById('cost-value').textContent = '—'; document.getElementById('cost-bar').style.width = '0%'; return; }
+
+  // Estimate cost from query structure
+  let cost = 2; // base
+  const fields = (code.match(/\{[^}]*\}/g) || []).reduce((acc, s) => acc + (s.match(/\w+/g)||[]).length, 0);
+  const depth = Math.max(0, ...(code.match(/\{/g)||[]).map((_, i) => i)) + 1;
+  const hasDirectives = code.includes('@');
+  cost += fields * 2;
+  cost += (depth - 1) * 5;
+  if (hasDirectives) cost += 5;
+  cost = Math.min(cost, 100);
+
+  const el = document.getElementById('cost-value');
+  const bar = document.getElementById('cost-bar');
+  el.textContent = cost;
+
+  const pct = cost;
+  bar.style.width = pct + '%';
+  bar.style.background = cost < 30 ? 'var(--green)' : cost < 70 ? 'var(--orange)' : 'var(--red)';
+}
+
+// ===== RUN QUERY =====
+async function runQuery() {
+  const query = getEditorContent().trim();
+  if (!query) return;
+
+  const btn = document.getElementById('run-btn');
+  btn.innerHTML = '<span class="loading-spin">↻</span> Running...';
+  btn.disabled = true;
+
+  const db = databases.find(d => d.id === activeDbId) || databases[0];
+
+  try {
+    const payload = await ipc.invoke('nexql:execute', { query, db });
+    const result = payload && payload.result ? payload.result : payload;
+
+    // Update db collections if mutations happened
+    const dbi = databases.findIndex(d => d.id === activeDbId);
+    if (dbi >= 0 && payload && payload.db) databases[dbi] = payload.db;
+    await ipc.invoke('db:save', databases);
+
+    lastResult = result;
+    displayResults(result, query);
+
+    // Add to history
+    history.unshift({
+      id: 'h_' + Date.now(),
+      query: query.slice(0, 200),
+      result: { ok: result.ok },
+      took: result['#took'],
+      cost: result['#cost'],
+      timestamp: Date.now()
+    });
+    if (history.length > 100) history.pop();
+    await ipc.invoke('history:save', history);
+    renderHistory();
+
+    // Update status bar
+    document.getElementById('exec-time-status').textContent = result['#took'] || '';
+  } catch(e) {
+    displayResults({ ok: false, errors: [{ code: 'ERROR', message: e.message }] }, query);
+  }
+
+  btn.innerHTML = '<span>▶</span> Run';
+  btn.disabled = false;
+}
+
+function displayResults(result, query) {
+  const meta = document.getElementById('results-meta');
+  meta.style.display = 'flex';
+
+  document.getElementById('res-status-dot').style.background = result.ok ? 'var(--green)' : 'var(--red)';
+  document.getElementById('res-status-text').textContent = result.ok === true ? 'OK' : result.ok === 'partial' ? 'PARTIAL' : 'ERROR';
+  document.getElementById('res-took').textContent = result['#took'] || '—';
+  document.getElementById('res-cost').textContent = result['#cost'] != null ? result['#cost'] : '—';
+
+  // NFX panel (Piql Format eXchange — our custom format, not JSON)
+  document.getElementById('panel-json').innerHTML = `<pre id="result-json" class="fade-in" style="font-family:'JetBrains Mono', monospace; font-size: 11px; line-height: 1.6; padding: 12px; overflow: auto;">${syntaxHighlightJSON(result)}</pre>`;
+
+  // Table panel
+  const tableData = extractTableData(result);
+  const tablePanel = document.getElementById('result-table');
+  if (tableData.length > 0) {
+    document.getElementById('row-count-badge').textContent = tableData.length;
+    document.getElementById('row-count-badge').style.display = '';
+    tablePanel.innerHTML = renderTable(tableData);
+  } else {
+    document.getElementById('row-count-badge').style.display = 'none';
+    tablePanel.innerHTML = '<div class="empty-state"><div class="empty-icon">▤</div><div class="empty-text">No tabular data</div><div class="empty-sub">Result is not a list</div></div>';
+  }
+
+  // Tree panel
+  document.getElementById('result-tree').innerHTML = renderTree(result);
+
+  // Info panel
+  renderInfoPanel(result, query);
+
+  // Warnings panel
+  renderWarningsPanel(result);
+}
+
+// Convert object to NFX (NEXUS Format eXchange) with header and braces, no decorative separators
+function syntaxHighlightJSON(obj) {
+  const qid = obj['#qid'] || 'unknown';
+  const cost = obj['#cost'] != null ? obj['#cost'] : '—';
+  const took = obj['#took'] || '—';
+  const okVal = obj.ok === true ? 'true' : obj.ok === 'partial' ? 'partial' : 'false';
+
+  // Prefer the actual payload under #data; fall back to top-level non-metadata keys.
+  let contentObj = obj && typeof obj === 'object' ? obj['#data'] : null;
+  if (contentObj == null || (typeof contentObj === 'object' && !Array.isArray(contentObj) && !Object.keys(contentObj).length)) {
+    contentObj = {};
+    for (const key in obj) {
+      if (!key.startsWith('#') && key !== 'ok') contentObj[key] = obj[key];
+    }
+  }
+
+  // Header line (single bracketed metadata)
+  let html = `<span style="color:var(--syn-directive)">[</span> `;
+  html += `<span style="color:var(--syn-variable)">qid</span> <span style="color:var(--syn-string)">"${escapeHtml(qid)}"</span> `;
+  html += `<span style="color:var(--syn-variable)">cost</span> <span style="color:var(--syn-number)">${cost}</span> `;
+  html += `<span style="color:var(--syn-variable)">took</span> <span style="color:var(--syn-string)">"${escapeHtml(took)}"</span> `;
+  html += `<span style="color:var(--syn-directive)">]</span>\n`;
+
+  // Status on next line
+  html += `<span style="color:var(--syn-variable)">ok</span> <span style="color:var(--syn-keyword)">${okVal}</span>\n`;
+
+  // Body: use braces for objects and items; arrays become repeated { ... } entries
+  html += (contentObj && typeof contentObj === 'object' && !Array.isArray(contentObj))
+    ? formatNFXObject(contentObj, 0)
+    : formatNFXValue(contentObj, 0);
+  return html;
+}
+
+const NFX_UNIVERSAL_KEYWORDS = new Set([
+  'true', 'false', 'null', 'undefined', 'yes', 'no', 'on', 'off', 'nil'
+]);
+
+function isNFXBareWord(value) {
+  return /^[A-Za-z_][A-Za-z0-9_\-]*$/.test(value);
+}
+
+function formatNFXText(value) {
+  const text = String(value ?? '');
+  const needsQuotes =
+    !text ||
+    !isNFXBareWord(text) ||
+    NFX_UNIVERSAL_KEYWORDS.has(text.toLowerCase());
+
+  if (needsQuotes) {
+    return `<span style="color:var(--syn-string)">"${escapeHtml(text)}"</span>`;
+  }
+
+  return `<span style="color:var(--syn-string)">${escapeHtml(text)}</span>`;
+}
+
+function formatNFXObject(obj, depth = 0) {
+  const indent = (n) => '    '.repeat(n);
+
+  if (obj === null) return `<span style="color:var(--text-3)">null</span>`;
+  if (typeof obj !== 'object' || Array.isArray(obj)) return formatNFXValue(obj, depth);
+
+  let html = '';
+  const keys = Object.keys(obj);
+  keys.forEach((key) => {
+    const val = obj[key];
+    const keyStyle = key.startsWith('#') ? 'color:var(--cyan)' : 'color:var(--syn-arg-key)';
+
+    if (Array.isArray(val)) {
+      const flattenErrors = key === 'errors';
+      
+      // Check if all items are objects (likely records)
+      const allObjects = val.length > 0 && val.every(item => typeof item === 'object' && item !== null && !Array.isArray(item));
+      
+      if (flattenErrors) {
+        // Error arrays are flattened without object wrapping
+        html += `${indent(depth)}<span style="${keyStyle}">${key}</span>  <span style="color:var(--text-2)">[</span>\n`;
+        val.forEach((item) => {
+          if (typeof item === 'object' && item !== null) {
+            Object.keys(item).filter(sk => sk !== 'hint' && sk !== 'path').forEach(sk => {
+              html += `${indent(depth + 1)}<span style="color:var(--syn-arg-key)">${sk}</span>  ${formatNFXValue(item[sk], depth + 1)}\n`;
+            });
+            if (val.length > 1) html += '\n';
+          }
+        });
+        html += `${indent(depth)}<span style="color:var(--text-2)">]</span>\n`;
+      } else if (val.length === 1 && allObjects) {
+        // Single item: render as simple object with {} (not array)
+        html += `${indent(depth)}<span style="${keyStyle}">${key}</span>  <span style="color:var(--text-2)">{</span>\n`;
+        const itemKeys = Object.keys(val[0]).filter(sk => sk !== 'hint' && sk !== 'path');
+        itemKeys.forEach(sk => {
+          html += `${indent(depth + 1)}<span style="color:var(--syn-arg-key)">${sk}</span>  ${formatNFXValue(val[0][sk], depth + 1)}\n`;
+        });
+        html += `${indent(depth)}<span style="color:var(--text-2)">}</span>\n`;
+      } else if (val.length > 1 && allObjects) {
+        // Multiple items: render as array of objects, each wrapped in {}
+        html += `${indent(depth)}<span style="${keyStyle}">${key}</span>  <span style="color:var(--text-2)">[</span>\n`;
+        val.forEach((item, idx) => {
+          html += `${indent(depth + 1)}<span style="color:var(--text-2)">{</span>\n`;
+          const itemKeys = Object.keys(item).filter(sk => sk !== 'hint' && sk !== 'path');
+          itemKeys.forEach(sk => {
+            html += `${indent(depth + 2)}<span style="color:var(--syn-arg-key)">${sk}</span>  ${formatNFXValue(item[sk], depth + 2)}\n`;
+          });
+          html += `${indent(depth + 1)}<span style="color:var(--text-2)">}</span>\n`;
+        });
+        html += `${indent(depth)}<span style="color:var(--text-2)">]</span>\n`;
+      } else {
+        // Primitive arrays (not all objects)
+        html += `${indent(depth)}<span style="${keyStyle}">${key}</span>  <span style="color:var(--text-2)">[</span>\n`;
+        val.forEach((item) => {
+          html += `${indent(depth + 1)}${formatNFXValue(item, depth + 1)}\n`;
+        });
+        html += `${indent(depth)}<span style="color:var(--text-2)">]</span>\n`;
+      }
+    } else if (typeof val === 'object' && val !== null) {
+      html += `${indent(depth)}<span style="${keyStyle}">${key}</span>  <span style="color:var(--text-2)">{</span>\n`;
+      Object.keys(val).forEach(sk => {
+        html += `${indent(depth + 1)}<span style="color:var(--syn-arg-key)">${sk}</span>  ${formatNFXValue(val[sk], depth + 1)}\n`;
+      });
+      html += `${indent(depth)}<span style="color:var(--text-2)">}</span>\n`;
+    } else {
+      html += `${indent(depth)}<span style="${keyStyle}">${key}</span>  ${formatNFXValue(val, depth)}\n`;
+    }
+  });
+  return html;
+}
+
+function formatNFXValue(value, depth = 0) {
+  if (value === null) return `<span style="color:var(--text-3)">null</span>`;
+  if (typeof value === 'boolean') return `<span style="color:var(--syn-keyword)">${value}</span>`;
+  if (typeof value === 'number') return `<span style="color:var(--syn-number)">${value}</span>`;
+  if (typeof value === 'string') return formatNFXText(value);
+  if (Array.isArray(value)) {
+    // Inline arrays stay bracketed. Single object items are unwrapped for tighter output.
+    if (value.length === 1 && typeof value[0] === 'object' && value[0] !== null && !Array.isArray(value[0])) {
+      const item = value[0];
+      const keys = Object.keys(item).filter(sk => sk !== 'hint' && sk !== 'path');
+      if (keys.length === 1) {
+        const k = keys[0];
+        return `<span style="color:var(--text-2)">[</span> ${k}  ${formatNFXValue(item[k], depth + 1)} <span style="color:var(--text-2)">]</span>`;
+      }
+    }
+    return `<span style="color:var(--text-2)">[</span> ` + value.map(v => formatNFXValue(v, depth)).join(' ') + ` <span style="color:var(--text-2)">]</span>`;
+  }
+  // Fallback for objects
+  if (typeof value === 'object') {
+    const indent = (n) => '    '.repeat(n);
+    let html = `<span style="color:var(--text-2)">{</span>\n`;
+    Object.keys(value).forEach(k => {
+      html += `${indent(depth + 1)}<span style="color:var(--syn-arg-key)">${k}</span>  ${formatNFXValue(value[k], depth + 1)}\n`;
+    });
+    html += `${indent(depth)}<span style="color:var(--text-2)">}</span>`;
+    return html;
+  }
+  return String(value);
+}
+
+function extractTableData(result) {
+  // Runtime payload typically nests records under #data; include both roots.
+  const candidates = [];
+  if (result && typeof result === 'object') {
+    candidates.push(result['#data']);
+    candidates.push(result);
+  }
+
+  for (const source of candidates) {
+    if (!source || typeof source !== 'object') continue;
+
+    for (const key of Object.keys(source)) {
+      if (key.startsWith('#')) continue;
+      const val = source[key];
+
+      if (Array.isArray(val) && val.length > 0 && typeof val[0] === 'object') {
+        return val;
+      }
+
+      // Columnar format: { '#': headers, '*': rows }
+      if (val && typeof val === 'object' && val['#'] && val['*']) {
+        const headers = val['#'];
+        return val['*'].map(row => Object.fromEntries(headers.map((h, i) => [h, row[i]])));
+      }
+
+      // Single object payload: show as one-row table.
+      if (val && typeof val === 'object' && !Array.isArray(val)) {
+        return [val];
+      }
+    }
+  }
+
+  return [];
+}
+
+function renderTable(rows) {
+  if (!rows.length) return '';
+  
+  // Render each row as an NFX block
+  let html = '<div style="font-family:\'JetBrains Mono\',monospace;font-size:12px;line-height:1.8;padding:12px;color:var(--text-1)">';
+  rows.forEach((row, idx) => {
+    html += `<div style="margin-bottom:16px;padding:8px;border-left:3px solid var(--syn-keyword);padding-left:12px;background:rgba(255,255,255,0.02)">`;
+    html += `<div style="color:var(--text-3);margin-bottom:8px;font-size:11px;font-weight:600;">[Record ${idx + 1}]</div>`;
+    html += formatNFXObject(row, 0);
+    html += `</div>`;
+  });
+  html += '</div>';
+  return html;
+}
+
+function renderTree(obj, depth = 0, isLast = true) {
+  // Render using NFX format instead of JSON tree
+  const html = formatNFXObject(obj, 0);
+  return `<div style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.8;padding:12px;color:var(--text-1)">${html}</div>`;
+}
+
+// Sanitize HTML strings to remove scripts and event handlers before injecting into the DOM.
+function sanitizeHTML(input) {
+  if (!input) return '';
+  try {
+    const doc = new DOMParser().parseFromString(input, 'text/html');
+    // Remove dangerous elements
+    doc.querySelectorAll('script,iframe,object,embed').forEach(n => n.remove());
+    // Remove event handler attributes and javascript: URIs
+    const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_ELEMENT, null, false);
+    let node;
+    while (node = walker.nextNode()) {
+      Array.from(node.attributes || []).forEach(attr => {
+        const name = attr.name || '';
+        const val = attr.value || '';
+        if (/^on/i.test(name)) node.removeAttribute(name);
+        if ((name === 'href' || name === 'src') && /^\s*javascript:/i.test(val)) node.removeAttribute(name);
+      });
+    }
+    return doc.body.innerHTML;
+  } catch (e) {
+    return '';
+  }
+}
+
+function renderInfoPanel(result, query) {
+  const cards = [
+    { label: 'Status', value: result.ok === true ? '✓ OK' : result.ok === 'partial' ? '~ Partial' : '✗ Error', cls: result.ok === true ? 'green' : result.ok === 'partial' ? '' : 'red' },
+    { label: 'Query ID', value: result['#qid'] || '—', cls: 'blue' },
+    { label: 'Exec Time', value: result['#took'] || '—', cls: '' },
+    { label: 'Cost Units', value: result['#cost'] != null ? result['#cost'] : '—', cls: 'purple' },
+    { label: 'Cached', value: result['#cached'] != null ? (result['#cached'] ? 'Yes' : 'No') : '—', cls: result['#cached'] ? 'green' : '' },
+    { label: 'Stream ID', value: result['#stream'] || '—', cls: 'purple' },
+    { label: 'Query Lines', value: query.split('\n').length, cls: '' },
+    { label: 'Query Length', value: query.length + ' chars', cls: '' },
+  ];
+  let html = cards.map(c =>
+    `<div class="info-card"><div class="info-card-label">${c.label}</div><div class="info-card-value ${c.cls}">${c.value}</div></div>`
+  ).join('');
+
+  // Add errors section if there are errors
+  if (result.errors && Array.isArray(result.errors) && result.errors.length > 0) {
+    html += `<div style="grid-column: 1 / -1; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px;">`;
+    html += `<div style="font-weight: 600; color: var(--red); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">✗ Errors (${result.errors.length})</div>`;
+    html += result.errors.map(e => 
+      `<div style="padding: 8px; background: rgba(248, 81, 73, 0.1); border-left: 2px solid var(--red); border-radius: 4px; font-size: 12px; color: var(--text-1); margin-bottom: 6px;"><strong>${escapeHtml(e.code || 'ERROR')}</strong>: ${escapeHtml(e.message || '')}</div>`
+    ).join('');
+    html += `</div>`;
+  }
+
+  document.getElementById('result-info').innerHTML = html;
+}
+
+function renderWarningsPanel(result) {
+  const warnings = Array.isArray(result && result.warnings) ? result.warnings : [];
+  const badge = document.getElementById('warning-count-badge');
+  const container = document.getElementById('result-warnings');
+
+  if (warnings.length > 0) {
+    badge.textContent = warnings.length;
+    badge.style.display = '';
+    container.innerHTML = `
+      <div class="fp-section">
+        <div class="fp-section-title">Warnings (${warnings.length})</div>
+        <div style="display:grid;gap:8px;">
+          ${warnings.map(w => `<div class="fp-result" style="min-height:auto"><span class="fp-badge warning">!</span> ${escapeHtml(w)}</div>`).join('')}
+        </div>
+      </div>
+    `;
+  } else {
+    badge.style.display = 'none';
+    badge.textContent = '';
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">⚑</div>
+        <div class="empty-text">No warnings</div>
+        <div class="empty-sub">Warnings generated by the parser or validator will appear here.</div>
+      </div>
+    `;
+  }
+}
+
+function clearResults() {
+  lastResult = null;
+  document.getElementById('results-meta').style.display = 'none';
+  document.getElementById('panel-json').innerHTML = '<div class="empty-state"><div class="empty-icon">⬡</div><div class="empty-text">No results yet</div><div class="empty-sub">Write a query and press Run (Ctrl+Enter)</div></div>';
+  document.getElementById('result-table').innerHTML = '';
+  document.getElementById('result-tree').innerHTML = '';
+  document.getElementById('result-info').innerHTML = '';
+  document.getElementById('result-warnings').innerHTML = '';
+  document.getElementById('row-count-badge').style.display = 'none';
+  document.getElementById('warning-count-badge').style.display = 'none';
+  document.getElementById('warning-count-badge').textContent = '';
+}
+
+// ===== RESULT TABS =====
+function switchResultTab(name) {
+  activeResultTab = name;
+  document.querySelectorAll('.result-tab').forEach((t, i) => {
+    const names = ['json', 'table', 'tree', 'info', 'warnings'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.result-panel').forEach(p => {
+    const id = p.id.replace('panel-', '');
+    p.classList.toggle('active', id === name);
+  });
+}
+
+// ===== FORMAT / EXPLAIN =====
+function formatQuery() {
+  const raw = getEditorContent();
+  const formatted = formatPiql(raw);
+  setEditorContent(formatted);
+}
+
+function formatPiql(code) {
+  // Simple formatter: normalize indentation
+  const lines = code.split('\n').map(l => l.trimEnd());
+  let result = [];
+  let depth = 0;
+
+  for (let line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) { result.push(''); continue; }
+
+    const opens = (trimmed.match(/\{/g)||[]).length;
+    const closes = (trimmed.match(/\}/g)||[]).length;
+
+    if (trimmed.startsWith('}')) depth = Math.max(0, depth - 1);
+
+    result.push('    '.repeat(depth) + trimmed);
+
+    if (opens > closes) depth++;
+    else if (closes > opens) depth = Math.max(0, depth - 1);
+  }
+  return result.join('\n');
+}
+
+function explainQuery() {
+  const query = getEditorContent().trim();
+  if (!query) return;
+
+  const method = query.startsWith('?') ? 'READ' : query.startsWith('+') ? 'CREATE' : query.startsWith('~') ? 'UPDATE' : query.startsWith('!') ? 'DELETE' : query.startsWith('>>') ? 'SUBSCRIBE' : 'UNKNOWN';
+  const fieldGroups = query.match(/\{[^{}]*\}/g) || [];
+  const fields = fieldGroups.flatMap(s => s.match(/\w+/g) || []);
+  const args = (query.match(/\(([^)]*)\)/)||[])[1];
+  const directives = (query.match(/@\w+/g)||[]).map(d => d.slice(1));
+  const depth = (query.match(/\{/g)||[]).length;
+  const costValue = document.getElementById('cost-value').textContent;
+  const uniqueFields = [...new Set(fields)].filter(Boolean);
+  openPanel_explain({ method, depth, fields: uniqueFields, args, directives, costValue, query });
+}
+
+function openPanel_explain(details) {
+  const astNodes = [
+    { label: 'Operation', value: details.method, tone: 'blue' },
+    { label: 'Target depth', value: `${details.depth} level${details.depth === 1 ? '' : 's'}`, tone: '' },
+    { label: 'Requested fields', value: details.fields.length ? details.fields.join(', ') : 'none', tone: '' },
+    { label: 'Arguments', value: details.args ? details.args : 'none', tone: '' },
+    { label: 'Directives', value: details.directives.length ? details.directives.map(d => `@${d}`).join(', ') : 'none', tone: 'purple' },
+    { label: 'Cursor mode', value: details.args && details.args.includes('$after') ? 'enabled' : 'off', tone: details.args && details.args.includes('$after') ? 'green' : '' },
+  ];
+
+  const planSteps = {
+    READ: [
+      'Parse and validate the query',
+      'Resolve collection and schema',
+      'Fetch matching records',
+      'Project requested fields',
+      'Render result payload',
+    ],
+    CREATE: [
+      'Parse and validate input fields',
+      'Check permissions and constraints',
+      'Persist the new document',
+      'Return created fields',
+    ],
+    UPDATE: [
+      'Locate the target record',
+      'Validate patch fields',
+      'Apply the update',
+      'Return updated data',
+    ],
+    DELETE: [
+      'Locate the target record',
+      'Check delete constraints',
+      'Remove the record',
+      'Return delete confirmation',
+    ],
+    SUBSCRIBE: [
+      'Register subscription handler',
+      'Open streaming transport',
+      'Apply rate limits',
+      'Emit updates as events arrive',
+    ],
+  };
+
+  const costNumber = Number(String(details.costValue).replace(/[^0-9.]/g, '')) || 0;
+  const costPct = Math.min(100, costNumber || Math.min(100, details.depth * 12 + details.fields.length * 2 + details.directives.length * 4 + (details.hasAlias ? -8 : 0) + (details.hasFragment ? -4 : 0)));
+  const costTone = costPct < 35 ? 'green' : costPct < 70 ? 'warning' : 'error';
+  const warnings = [];
+  if (!details.fields.length) warnings.push('No explicit fields selected. The response may be broad.');
+  if (details.depth > 3) warnings.push('Deep nesting can increase cost and latency.');
+  if (details.directives.some(d => d === 'auth')) warnings.push('Authorization directives may block fields for some users.');
+  if (details.directives.some(d => d === 'cost') && costPct > 70) warnings.push('Cost limit is near or above the red threshold.');
+
+  const astHtml = astNodes.map(node => `
+    <div class="fp-result" style="min-height:auto">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
+        <strong style="color:var(--accent)">${node.label}</strong>
+        <span style="color:${node.tone === 'green' ? 'var(--green)' : node.tone === 'warning' ? 'var(--orange)' : node.tone === 'error' ? 'var(--red)' : node.tone === 'purple' ? 'var(--purple)' : 'var(--text-0)'};font-family:'JetBrains Mono', monospace">${escapeHtml(node.value)}</span>
+      </div>
+    </div>
+  `).join('');
+
+  const stepsHtml = (planSteps[details.method] || ['Parse query', 'Validate schema', 'Execute query', 'Return result'])
+    .map((step, index) => `<div class="fp-result" style="min-height:auto;display:flex;gap:10px;align-items:flex-start"><span class="fp-badge success">${index + 1}</span><span>${escapeHtml(step)}</span></div>`)
+    .join('');
+
+  const warningsHtml = warnings.length
+    ? warnings.map(w => `<div class="fp-result" style="min-height:auto"><span class="fp-badge warning">!</span> ${escapeHtml(w)}</div>`).join('')
+    : `<div class="fp-result" style="min-height:auto"><span class="fp-badge success">✓</span> No immediate warnings detected.</div>`;
+
+  featurePanel.open('explain', '⚡', 'Explain Query', `
+    <div class="fp-section">
+      <div class="fp-section-title">AST Summary</div>
+      <div style="display:grid;gap:8px;">${astHtml}</div>
+    </div>
+
+    <div class="fp-section">
+      <div class="fp-section-title">Estimated Cost</div>
+      <div class="fp-result" style="min-height:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:12px;">
+          <strong style="color:var(--accent)">Last query cost</strong>
+          <span style="font-family:'JetBrains Mono', monospace;color:var(--text-0)">${escapeHtml(details.costValue)} units</span>
+        </div>
+        <div style="height:8px;background:var(--bg-3);border:1px solid var(--border);border-radius:999px;overflow:hidden;">
+          <div style="width:${costPct}%;height:100%;background:${costTone === 'green' ? 'var(--green)' : costTone === 'warning' ? 'var(--orange)' : 'var(--red)'}"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--text-3)">
+          <span>0</span><span>100</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="fp-section">
+      <div class="fp-section-title">Execution Plan</div>
+      <div style="display:grid;gap:8px;">${stepsHtml}</div>
+    </div>
+
+    <div class="fp-section">
+      <div class="fp-section-title">Warnings</div>
+      <div style="display:grid;gap:8px;">${warningsHtml}</div>
+    </div>
+
+    <div class="fp-section">
+      <div class="fp-section-title">Query Preview</div>
+      <div class="fp-result" style="white-space:pre-wrap">${escapeHtml(details.query)}</div>
+    </div>
+  `);
+}
+
+function openPanel_help() {
+  featurePanel.open('help', '⌘', 'Syntax Reference', `
+    <div class="fp-section">
+      <div class="fp-section-title">Overview</div>
+      <div class="fp-result" style="min-height:auto">
+        Piql uses a compact operator-first syntax. The panel below covers the core methods,
+        data types, directives, and the templates already available in the editor toolbar.
+      </div>
+    </div>
+
+    <div class="fp-section">
+      <div class="fp-section-title">Methods</div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+        <div class="fp-result"><span class="fp-badge success">?</span> Read / Fetch</div>
+        <div class="fp-result"><span class="fp-badge success">+</span> Create</div>
+        <div class="fp-result"><span class="fp-badge warning">~</span> Update / Patch</div>
+        <div class="fp-result"><span class="fp-badge error">!</span> Delete</div>
+        <div class="fp-result"><span class="fp-badge warning">&gt;&gt;</span> Subscribe / Stream</div>
+        <div class="fp-result"><span class="fp-badge warning">&lt;&lt;</span> Publish / Push</div>
+      </div>
+    </div>
+
+    <div class="fp-section">
+      <div class="fp-section-title">Quick Templates</div>
+      <div class="fp-result" style="white-space:pre">
+    ? user (id "u_001") { name email createdAt }
+
++ post { title: "Hello" authorId: $userId } { id createdAt }
+
+    ~ post (id "p_001") { status: published } { id updatedAt }
+
+    ! post (id "p_001") { id }
+      </div>
+    </div>
+
+    <div class="fp-section">
+      <div class="fp-section-title">Types</div>
+      <div class="fp-result" style="white-space:pre">
+str   string
+int   integer
+float decimal
+bool  true/false
+uid   unique id
+ts    timestamp
+[T]   list of T
+!     required
+?     optional
+      </div>
+    </div>
+
+    <div class="fp-section">
+      <div class="fp-section-title">Directives</div>
+      <div class="fp-result" style="white-space:pre">
+@cache(ttl:N)   cache the response
+@auth(role:X)   require an access role
+@cost(max:N)    cap field/query cost
+@cols           return columnar output
+@rate(max:N)    rate limit subscriptions
+      </div>
+    </div>
+
+    <div class="fp-section">
+      <div class="fp-section-title">Keyboard Shortcuts</div>
+      <div class="fp-result" style="white-space:pre">
+Ctrl+Enter   Run query
+Ctrl+T       New tab
+Ctrl+S       Save query
+Ctrl+F       Format query
+Ctrl+]       Go to definition
+Escape       Close open panels
+      </div>
+    </div>
+  `);
+}
+
+function clearEditor() {
+  setEditorContent('');
+}
+
+// ===== TEMPLATES =====
+function insertTemplate(type) {
+  const templates = {
+    read: '? user (id "u_001")\n  { name email createdAt }',
+    create: '+ post {\n  title: "New Post"\n  body: "Content here"\n  authorId: $userId\n} { id createdAt }',
+    update: '~ post (id "p_001") {\n  title: "Updated Title"\n  status: published\n} { id updatedAt }',
+    delete: '! post (id "p_001") { id }',
+    subscribe: '>> messages($channelId: "ch_001" $since: $after) {\n  id body authorId createdAt\n} @rate(max: 10 per: second)',
+    schema: 'type MyType {\n  id:       uid!\n  name:     str(max: 128)!\n  value:    int?\n  active:   bool = true\n  tags:     [str](limit: 10)\n  createdAt: ts!\n}',
+  };
+  
+  // Use dynamic templates if a table is selected
+  if (selectedTable) {
+    if (type === 'read') {
+      setEditorContent(generateDynamicRead());
+      return;
+    } else if (type === 'create') {
+      setEditorContent(generateDynamicCreate());
+      return;
+    } else if (type === 'update') {
+      setEditorContent(generateDynamicUpdate());
+      return;
+    } else if (type === 'delete') {
+      setEditorContent(generateDynamicDelete());
+      return;
+    }
+  }
+  
+  setEditorContent(templates[type] || '');
+}
+
+function getSchemaForTable(tableName) {
+  const db = databases.find(d => d.id === selectedDatabase);
+  const allSchemas = db?.schema || getBuiltinSchema();
+  
+  // Try to find exact match (case-insensitive)
+  let schema = allSchemas.find(s => s.name.toLowerCase() === tableName.toLowerCase());
+  if (schema) return schema;
+  
+  // Try singular/plural variations
+  const nameSingular = tableName.endsWith('s') ? tableName.slice(0, -1) : tableName;
+  const namePlural = tableName + 's';
+  schema = allSchemas.find(s => s.name.toLowerCase() === nameSingular.toLowerCase());
+  if (schema) return schema;
+  schema = allSchemas.find(s => s.name.toLowerCase() === namePlural.toLowerCase());
+  if (schema) return schema;
+  
+  // Fallback: create minimal schema from first item in database
+  if (db?.collections && db.collections[tableName] && db.collections[tableName].length > 0) {
+    const firstItem = db.collections[tableName][0];
+    return {
+      name: tableName,
+      fields: Object.keys(firstItem).map(k => ({
+        name: k,
+        type: typeof firstItem[k] === 'string' ? 'str' : typeof firstItem[k] === 'number' ? 'int' : 'str',
+        nullable: true
+      }))
+    };
+  }
+  
+  return null;
+}
+
+function generateDynamicRead() {
+  const schema = getSchemaForTable(selectedTable);
+  if (!schema) return `? ${selectedTable} ($limit 10)\n  { * }`;
+  
+  const idField = schema.fields.find(f => f.name === 'id') || schema.fields[0];
+  const fields = schema.fields
+    .filter(f => !f.type.startsWith('[') && !f.type.includes('?'))
+    .slice(0, 5)
+    .map(f => f.name)
+    .join(' ');
+  
+  return `? ${selectedTable} (id "id_value")\n  { ${fields} }`;
+}
+
+function generateDynamicCreate() {
+  const schema = getSchemaForTable(selectedTable);
+  if (!schema) return `+ ${selectedTable} {\n  /* add fields here */\n} { id }`;
+  
+  const fieldLines = schema.fields
+    .filter(f => f.name !== 'id' && !f.name.includes('createdAt') && !f.name.includes('updatedAt'))
+    .map(f => {
+      let placeholder = '';
+      const type = f.type.toLowerCase();
+      
+      if (type.includes('str')) placeholder = '"New item"';
+      else if (type.includes('int')) placeholder = '1';
+      else if (type === 'float' || type.includes('float')) placeholder = '0.0';
+      else if (type.includes('bool')) placeholder = 'true';
+      else if (type.includes('ts') || type.includes('time')) placeholder = '$now';
+      else if (type.startsWith('[')) placeholder = '[]';
+      else if (type.includes('uid')) placeholder = '"id_123"';
+      else placeholder = '"value"';
+      
+      return `  ${f.name}: ${placeholder}`;
+    });
+  
+  const returnFields = ['id', 'createdAt'].filter(f => schema.fields.some(sf => sf.name === f)).join(' ');
+  
+  return `+ ${selectedTable} {\n${fieldLines.join('\n')}\n} { ${returnFields} }`;
+}
+
+function generateDynamicUpdate() {
+  const schema = getSchemaForTable(selectedTable);
+  if (!schema) return `~ ${selectedTable} (id "id_value") {\n  field: "new_value"\n} { id updatedAt }`;
+  
+  const idField = schema.fields.find(f => f.name === 'id')?.name || 'id';
+  const updateableFields = schema.fields
+    .filter(f => f.name !== 'id' && !f.name.includes('createdAt'))
+    .slice(0, 3);
+  
+  const fieldLines = updateableFields.map(f => {
+    let placeholder = '';
+    const type = f.type.toLowerCase();
+    
+    if (type.includes('str')) placeholder = '"Updated value"';
+    else if (type.includes('int')) placeholder = '10';
+    else if (type === 'float' || type.includes('float')) placeholder = '5.5';
+    else if (type.includes('bool')) placeholder = 'false';
+    else if (type.includes('uid')) placeholder = '"id_456"';
+    else placeholder = '"updated"';
+    return `  ${f.name}: ${placeholder}`;
+  });
+  
+  const returnFields = ['id', 'updatedAt'].filter(f => schema.fields.some(sf => sf.name === f)).join(' ');
+  
+  return `~ ${selectedTable} (${idField} "id_value") {\n${fieldLines.join('\n')}\n} { ${returnFields} }`;
+}
+
+function generateDynamicDelete() {
+  const schema = getSchemaForTable(selectedTable);
+  if (!schema) return `! ${selectedTable} (id "id_value") { id }`;
+  
+  const idField = schema.fields.find(f => f.name === 'id')?.name || 'id';
+  const returnFields = schema.fields.slice(0, 2).map(f => f.name).join(' ');
+  
+  return `! ${selectedTable} (${idField} "id_value") { ${returnFields} }`;
+}
+
+function updateCrudButtonStates() {
+  const label = selectedTable ? `${selectedTable}` : 'None';
+  const crumbEl = document.querySelector('#editor-toolbar .table-breadcrumb');
+  if (crumbEl) {
+    crumbEl.textContent = `📋 ${label}`;
+  }
+}
+
+// ===== DB TREE =====
+function renderDbTree() {
+  const tree = document.getElementById('db-tree');
+  tree.innerHTML = '';
+  databases.forEach(db => {
+    const isActive = db.id === activeDbId;
+    const div = document.createElement('div');
+    div.className = 'db-item' + (isActive ? ' active' : '');
+    div.onclick = () => selectDb(db.id);
+    div.innerHTML = `
+      <span class="db-item-icon">🗄</span>
+      <span class="db-item-name">${escapeHtml(db.name)}</span>
+      <span class="db-item-badge">${Object.keys(db.collections || {}).length} cols</span>
+    `;
+    tree.appendChild(div);
+
+    if (isActive && db.collections) {
+      const colDiv = document.createElement('div');
+      colDiv.className = 'db-collection';
+      Object.keys(db.collections).forEach(col => {
+        const c = document.createElement('div');
+        c.className = 'collection-item';
+        const count = db.collections[col].length;
+        c.innerHTML = `<span>▤</span><span>${escapeHtml(col)}</span><span style="margin-left:auto;font-size:9px;color:var(--text-3)">${count}</span>`;
+        c.onclick = () => {
+          selectedTable = col;
+          selectedDatabase = db.id;
+          c.parentNode.querySelectorAll('.collection-item').forEach(item => item.classList.remove('active-table'));
+          c.classList.add('active-table');
+          setEditorContent(`? ${col} ($limit 10) {\n  *\n}`);
+          updateCrudButtonStates();
+        };
+        colDiv.appendChild(c);
+      });
+      tree.appendChild(colDiv);
+    }
+  });
+}
+
+function selectDb(id) {
+  activeDbId = id;
+  renderDbTree();
+  document.getElementById('conn-label').textContent = databases.find(d => d.id === id)?.name || 'Unknown';
+}
+
+// ===== SCHEMA =====
+function renderSchema() {
+  const db = databases.find(d => d.id === activeDbId);
+  const types = db?.schema || getBuiltinSchema();
+  const tree = document.getElementById('schema-tree');
+  tree.innerHTML = '';
+
+  types.forEach(type => {
+    const div = document.createElement('div');
+    div.className = 'schema-type';
+    div.innerHTML = `
+      <div class="schema-type-header" onclick="toggleSchemaType(this)">
+        <span class="toggle">▶</span>
+        <span>◈</span>
+        <span>${escapeHtml(type.name)}</span>
+      </div>
+      <div class="schema-fields">
+        ${(type.fields || []).map(f => `
+          <div class="schema-field" onclick="insertField('${escapeHtml(f.name)}')">
+            <span class="sf-name">${escapeHtml(f.name)}</span>
+            <span class="sf-type">${escapeHtml(f.type)}</span>
+            <span class="sf-required">${f.nullable ? '' : '!'}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    tree.appendChild(div);
+  });
+}
+
+function toggleSchemaType(header) {
+  header.parentElement.classList.toggle('open');
+}
+
+function insertField(name) {
+  const editor = document.getElementById('editor');
+  const pos = editor.selectionStart;
+  const val = editor.value;
+  editor.value = val.slice(0, pos) + name + val.slice(pos);
+  editor.selectionStart = editor.selectionEnd = pos + name.length;
+  editor.focus();
+  onEditorInput();
+}
+
+function getBuiltinSchema() {
+  return [
+    { name: 'User', fields: [
+      { name: 'id', type: 'uid', nullable: false },
+      { name: 'name', type: 'str', nullable: false },
+      { name: 'email', type: 'str', nullable: false },
+      { name: 'age', type: 'int', nullable: true },
+      { name: 'posts', type: '[Post]', nullable: true },
+      { name: 'createdAt', type: 'ts', nullable: false },
+    ]},
+    { name: 'Post', fields: [
+      { name: 'id', type: 'uid', nullable: false },
+      { name: 'title', type: 'str', nullable: false },
+      { name: 'body', type: 'str', nullable: true },
+      { name: 'author', type: 'User', nullable: false },
+      { name: 'score', type: 'float', nullable: true },
+      { name: 'status', type: 'enum', nullable: false },
+      { name: 'tags', type: '[str]', nullable: true },
+      { name: 'createdAt', type: 'ts', nullable: false },
+    ]},
+    { name: 'Org', fields: [
+      { name: 'id', type: 'uid', nullable: false },
+      { name: 'name', type: 'str', nullable: false },
+      { name: 'plan', type: 'str', nullable: false },
+      { name: 'memberCount', type: 'int', nullable: false },
+    ]},
+    { name: 'Message', fields: [
+      { name: 'id', type: 'uid', nullable: false },
+      { name: 'body', type: 'str', nullable: false },
+      { name: 'authorId', type: 'uid', nullable: false },
+      { name: 'createdAt', type: 'ts', nullable: false },
+    ]},
+  ];
+}
+
+// ===== SNIPPETS =====
+function renderSnippets() {
+  const list = document.getElementById('snippets-list');
+  list.innerHTML = '';
+  const categories = [...new Set(snippets.map(s => s.category))];
+  const icons = { Query:'?', Mutation:'+', Subscription:'>>', Schema:'◈', Advanced:'⚡' };
+
+  categories.forEach(cat => {
+    const catDiv = document.createElement('div');
+    catDiv.className = 'snippet-category';
+    catDiv.textContent = cat;
+    list.appendChild(catDiv);
+
+    snippets.filter(s => s.category === cat).forEach(s => {
+      const div = document.createElement('div');
+      div.className = 'snippet-item';
+      div.onclick = () => { setEditorContent(s.code); };
+      div.innerHTML = `<span class="snippet-icon">${icons[cat] || '·'}</span><span class="snippet-name">${escapeHtml(s.name)}</span>`;
+      list.appendChild(div);
+    });
+  });
+}
+
+async function saveCurrentAsSnippet() {
+  openPanel_saveSnippet();
+}
+
+function openPanel_saveSnippet() {
+  featurePanel.open('save-snippet', '⚡', 'Save Snippet', `
+    <div class="fp-section">
+      <div class="fp-section-title">Snippet Details</div>
+      <div class="fp-field">
+        <label class="fp-label">Snippet Name</label>
+        <input id="fp-snippet-name" class="fp-input" placeholder="My Query" />
+      </div>
+      <div class="fp-field">
+        <label class="fp-label">Category</label>
+        <select id="fp-snippet-category" class="fp-select">
+          <option>Query</option>
+          <option>Mutation</option>
+          <option>Subscription</option>
+          <option>Schema</option>
+          <option>Advanced</option>
+        </select>
+      </div>
+      <div class="fp-actions">
+        <button class="btn btn-ghost" onclick="featurePanel.close()">Cancel</button>
+        <button class="btn btn-primary" id="fp-snippet-save-btn" onclick="submitFpSaveSnippet()">Save</button>
+      </div>
+    </div>
+    <div class="fp-section">
+      <div class="fp-section-title">Preview</div>
+      <div class="fp-result" id="fp-snippet-preview" style="white-space:pre-wrap">${escapeHtml(getEditorContent())}</div>
+    </div>
+    <div class="fp-section">
+      <div class="fp-section-title">Result</div>
+      <div id="fp-snippet-result" class="fp-result">No action yet.</div>
+    </div>
+  `);
+  // focus name field after open
+  setTimeout(() => {
+    const name = featurePanel.body.querySelector('#fp-snippet-name');
+    if (name) name.focus();
+  }, 200);
+}
+
+async function submitFpSaveSnippet() {
+  const nameEl = featurePanel.body.querySelector('#fp-snippet-name');
+  const catEl = featurePanel.body.querySelector('#fp-snippet-category');
+  const resultEl = featurePanel.body.querySelector('#fp-snippet-result');
+  const btn = featurePanel.body.querySelector('#fp-snippet-save-btn');
+  if (!nameEl || !catEl || !btn) return;
+
+  const name = nameEl.value.trim();
+  const category = catEl.value;
+  if (!name) {
+    resultEl.innerHTML = '<span class="fp-badge error">Error</span> Name is required.';
+    nameEl.focus();
+    return;
+  }
+
+  btn.disabled = true; btn.innerText = 'Saving...';
+  try {
+    const code = getEditorContent();
+    snippets.push({ id: 's_' + Date.now(), name, category, code });
+    await ipc.invoke('snippets:save', snippets);
+    renderSnippets();
+    resultEl.innerHTML = '<span class="fp-badge success">Saved</span> Snippet "' + escapeHtml(name) + '" saved.';
+    setTimeout(() => featurePanel.close(), 700);
+  } catch (e) {
+    resultEl.innerHTML = '<span class="fp-badge error">Error</span> ' + escapeHtml(e.message || 'Failed to save snippet');
+  } finally {
+    btn.disabled = false; btn.innerText = 'Save';
+  }
+}
+
+// ===== HISTORY =====
+function renderHistory() {
+  const list = document.getElementById('history-list');
+  list.innerHTML = '';
+  if (!history.length) {
+    list.innerHTML = '<div class="empty-state" style="padding:20px"><div class="empty-icon" style="font-size:20px">📜</div><div class="empty-text">No history yet</div></div>';
+    return;
+  }
+  history.slice(0, 50).forEach(h => {
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    div.onclick = () => setEditorContent(h.query);
+    const time = new Date(h.timestamp).toLocaleTimeString();
+    div.innerHTML = `
+      <div class="history-time">
+        <span class="history-status ${h.result.ok ? 'ok' : 'err'}"></span>
+        ${time} ${h.took ? '· '+h.took : ''}
+      </div>
+      <div class="history-preview">${escapeHtml(h.query.split('\n')[0])}</div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+async function clearHistory() {
+  history = [];
+  await ipc.invoke('history:save', history);
+  renderHistory();
+}
+
+// ===== DB MODAL =====
+// Legacy modal handlers removed. Use the feature panel (openPanel_createDatabase).
+
+// ===== CREATE DATABASE PANEL =====
+function openPanel_createDatabase() {
+  featurePanel.open('create-db', '🗄', 'Create Database', `
+    <div class="fp-section">
+      <div class="fp-section-title">Database Details</div>
+      <div class="fp-field">
+        <label class="fp-label">Database Name</label>
+        <input id="fp-db-name" class="fp-input" placeholder="my_database" />
+      </div>
+      <div class="fp-field">
+        <label class="fp-label">Description (optional)</label>
+        <input id="fp-db-desc" class="fp-input" placeholder="Production, Staging, etc." />
+      </div>
+      <div class="fp-actions">
+        <button class="btn btn-ghost" onclick="featurePanel.close()">Cancel</button>
+        <button class="btn btn-primary" id="fp-create-btn" onclick="submitFpCreateDb()">Create</button>
+      </div>
+    </div>
+    <div class="fp-section">
+      <div class="fp-section-title">Result</div>
+      <div id="fp-result-area" class="fp-result">No action yet.</div>
+    </div>
+  `);
+}
+
+function setupFeatureHubListeners() {
+  setTimeout(() => {
+    // Make categories collapsible
+    document.querySelectorAll('#feature-panel .fp-category-header').forEach(h => {
+      h.removeEventListener('click', featureHubToggleCategory);
+      h.addEventListener('click', featureHubToggleCategory);
+    });
+
+    // Wire search
+    const inp = document.getElementById('fp-feature-search');
+    if (inp) {
+      inp.removeEventListener('input', featureHubSearchListener);
+      inp.addEventListener('input', featureHubSearchListener);
+      inp.removeEventListener('keydown', featureHubSearchKeydown);
+      inp.addEventListener('keydown', featureHubSearchKeydown);
+    }
+  }, 50);
+}
+
+function featureHubToggleCategory(e) {
+  const cat = this.parentElement;
+  cat.classList.toggle('open');
+  const toggle = this.querySelector('.cat-toggle');
+  if (cat.classList.contains('open')) toggle.textContent = '▾'; else toggle.textContent = '▸';
+}
+
+function featureHubSearchListener(e) {
+  filterFeatureHub(e.target.value);
+}
+
+function featureHubSearchKeydown(e) {
+  if (e.key === 'Escape') {
+    e.target.value = '';
+    filterFeatureHub('');
+    e.target.blur();
+  }
+}
+
+function filterFeatureHub(q) {
+  q = (q || '').trim().toLowerCase();
+  const items = document.querySelectorAll('#feature-panel .fp-link');
+  let shown = 0;
+  items.forEach(it => {
+    const l = it.dataset.label || '';
+    const c = it.dataset.cat || '';
+    if (!q || l.includes(q) || c.includes(q)) { it.style.display = ''; shown++; }
+    else it.style.display = 'none';
+  });
+  // show empty state per category
+  document.querySelectorAll('#feature-panel .fp-category').forEach(cat => {
+    const any = cat.querySelectorAll('.fp-link').length && Array.from(cat.querySelectorAll('.fp-link')).some(n => n.style.display !== 'none');
+    if (!any) {
+      if (!cat.querySelector('.fp-empty')) cat.insertAdjacentHTML('beforeend', '<div class="fp-empty">No features match.</div>');
+    } else {
+      const ex = cat.querySelector('.fp-empty'); if (ex) ex.remove();
+    }
+  });
+}
+
+function openPanel_featureHub() {
+  const sections = [
+    {
+      title: 'Core',
+      items: [
+        ['Help', 'openPanel_help()'],
+        ['Explain Query', 'explainQuery()'],
+        ['Save Snippet', 'openPanel_saveSnippet()'],
+        ['Create Database', 'openPanel_createDatabase()'],
+      ],
+    },
+    {
+      title: 'Team',
+      items: [
+        ['Create Team', 'openPanel_createTeam()'],
+        ['Create Workspace', 'openPanel_createWorkspace()'],
+        ['Team Analytics', 'openPanel_teamAnalytics()'],
+        ['Orchestration', 'openPanel_multiOrchestration()'],
+      ],
+    },
+    {
+      title: 'AI',
+      items: [
+        ['Debug Assistant', 'openPanel_aiDebug()'],
+        ['NL → Piql', 'openPanel_aiNLToQuery()'],
+        ['Optimize Query', 'openPanel_aiOptimize()'],
+      ],
+    },
+    {
+      title: 'Observability',
+      items: [
+        ['Latency Stats', 'openPanel_obsLatency()'],
+        ['Execution Graph', 'openPanel_obsExecutionGraph()'],
+      ],
+    },
+    {
+      title: 'Security',
+      items: [
+        ['Depth Check', 'openPanel_secDepth()'],
+        ['Audit Log', 'openPanel_secAuditLog()'],
+      ],
+    },
+    {
+      title: 'SDK',
+      items: [
+        ['Generate SDK', 'openPanel_sdkGenerate()'],
+        ['Create Webhook', 'openPanel_sdkWebhook()'],
+      ],
+    },
+    {
+      title: 'Visualization',
+      items: [
+        ['Graph Visualization', 'openPanel_vizGraph()'],
+        ['ERD', 'openPanel_vizERD()'],
+      ],
+    },
+    {
+      title: 'Database Tools',
+      items: [
+        ['Field Usage', 'openPanel_fieldUsageAnalytics()'],
+        ['Schema Diff', 'openPanel_schemaDiff()'],
+      ],
+    },
+  ];
+
+  const html = `
+    <div class="fp-search">
+      <input id="fp-feature-search" placeholder="Search features (name, category)..." />
+      <button class="btn btn-ghost" onclick="document.getElementById('fp-feature-search').value=''; filterFeatureHub('')">Clear</button>
+    </div>
+    <div id="fp-feature-sections">
+      ${sections.map(section => {
+        const buttons = section.items
+          .map(([label, action]) => {
+            const desc = (label.split(/\s+/).slice(0,2).join(' '));
+            return `<button class="fp-link" data-label="${label.toLowerCase()}" data-cat="${section.title.toLowerCase()}" onclick="${action}"><div class=\"fp-link-title\">${label}</div><div class=\"fp-link-desc\">${escapeHtml(desc)}</div></button>`;
+          }).join('');
+        return `<div class="fp-category open"><div class="fp-category-header"><div class=\"cat-title\">${section.title}</div><div class=\"cat-toggle\">▾</div></div><div class=\"fp-grid\">${buttons}</div></div>`;
+      }).join('')}
+    </div>
+  `;
+
+  featurePanel.open('feature-hub', '☰', 'Feature Hub', html);
+  setupFeatureHubListeners();
+}
+
+// ===== PANEL HELPERS (from panel-system spec) =====
+function fpField(label, id, type = 'text', value = '', placeholder = '') {
+  return `<div class="fp-field"><label class="fp-label" for="${id}">${label}</label><input class="fp-input" id="${id}" type="${type}" value="${escapeHtml(value)}" placeholder="${escapeHtml(placeholder)}"></div>`;
+}
+function fpSelect(label, id, options) {
+  const opts = options.map(o => `<option value="${escapeHtml(o.v)}">${escapeHtml(o.l)}</option>`).join('');
+  return `<div class="fp-field"><label class="fp-label" for="${id}">${label}</label><select class="fp-select" id="${id}">${opts}</select></div>`;
+}
+function fpTextarea(label, id, value = '', rows = 4) {
+  return `<div class="fp-field"><label class="fp-label" for="${id}">${label}</label><textarea class="fp-textarea" id="${id}" rows="${rows}">${escapeHtml(value)}</textarea></div>`;
+}
+function fpResult() {
+  return `<div class="fp-section"><div class="fp-section-title">Result</div><div class="fp-result" id="fp-result-area"><span style="color:var(--text-3)">Run a command to see output…</span></div></div>`;
+}
+function fpBtn(label, onclick, variant = 'primary') {
+  const cls = variant === 'ghost' ? 'btn btn-ghost' : 'btn btn-primary';
+  return `<button class="${cls}" onclick="${onclick}">${label}</button>`;
+}
+
+// ===== BULK PANEL IMPLEMENTATIONS =====
+function openPanel_createTeam() {
+  featurePanel.open('team-create', '👥', 'Create Team', `
+    <div class="fp-section">
+      <div class="fp-section-title">What is a Team?</div>
+      <p style="color:var(--text-2);font-size:11px;line-height:1.6">Teams organize workspaces and members. Once created, use the Team ID to create workspaces, manage members, and enable collaborative features.</p>
+    </div>
+    <div class="fp-section">
+      <div class="fp-section-title">New Team</div>
+      ${fpField('Team Name', 'fp-team-name', 'text', '', 'e.g. Engineering, Analytics')}
+      ${fpField('Owner User ID (optional)', 'fp-team-owner', 'text', '', 'Leave blank for auto-assign')}
+      <div class="fp-actions">${fpBtn('Create Team', 'panelAction_createTeam()')}</div>
+    </div>
+    ${fpResult()}
+  `);
+}
+function panelAction_createTeam() {
+  const name = document.getElementById('fp-team-name').value.trim();
+  const owner = document.getElementById('fp-team-owner').value.trim() || 'auto';
+  if (!name) return featurePanel.setResult('<span class="fp-badge error">Error</span> Team name is required');
+  ipc.invoke('team:create', { name, owner }).then(r => {
+    const result = `<span class="fp-badge success">✓ Created</span>\n<b>Team Name:</b> ${escapeHtml(r.name)}\n<b>Team ID:</b> <code style="color:var(--accent);">${escapeHtml(r.id)}</code> <button class="btn btn-ghost fp-copy-btn" data-copy-id="${escapeHtml(r.id)}">Copy</button>\n\n<small style="color:var(--text-3)">Use this Team ID to create workspaces. Copy and save it!</small>`;
+    featurePanel.setResult(result);
+    // Wire copy buttons inside the feature panel result area
+    setTimeout(() => {
+      featurePanel.body.querySelectorAll('.fp-copy-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.copyId;
+          if (id) {
+            const ok = (ipc && typeof ipc.copy === 'function') ? ipc.copy(id) : (navigator.clipboard ? (navigator.clipboard.writeText(id).then(()=>true).catch(()=>false)) : false);
+            try { alert('Copied!'); } catch(e) {}
+          }
+        });
+      });
+    }, 50);
+    localStorage.setItem('lastTeamId', r.id);
+  }).catch(e => featurePanel.setResult(`<span class="fp-badge error">✗</span> ${escapeHtml(e.message)}`));
+}
+
+function openPanel_createWorkspace() {
+  const lastTeamId = localStorage.getItem('lastTeamId') || '';
+  featurePanel.open('team-workspace', '🗂️', 'Create Workspace', `
+    <div class="fp-section">
+      <div class="fp-section-title">What is a Workspace?</div>
+      <p style="color:var(--text-2);font-size:11px;line-height:1.6">Workspaces are projects under a Team. Each workspace has its own members, permissions, and queries. Multiple teams can have multiple workspaces.</p>
+    </div>
+    <div class="fp-section">
+      <div class="fp-section-title">New Workspace</div>
+      ${fpField('Team ID', 'fp-ws-team', 'text', lastTeamId, 'Paste Team ID from Team creation')}
+      ${fpField('Workspace Name', 'fp-ws-name', 'text', '', 'e.g. Q4-Analytics, Product-Dev')}
+      <div class="fp-actions">${fpBtn('Create Workspace', 'panelAction_createWorkspace()')}</div>
+    </div>
+    ${fpResult()}
+  `);
+}
+function panelAction_createWorkspace() {
+  const teamId = document.getElementById('fp-ws-team').value.trim();
+  const name = document.getElementById('fp-ws-name').value.trim();
+  if (!teamId) return featurePanel.setResult('<span class="fp-badge error">Error</span> Team ID is required');
+  if (!name) return featurePanel.setResult('<span class="fp-badge error">Error</span> Workspace name is required');
+  ipc.invoke('team:createWorkspace', { teamId, name }).then(r => {
+    const result = `<span class="fp-badge success">✓ Created</span>\n<b>Workspace Name:</b> ${escapeHtml(r.name)}\n<b>Workspace ID:</b> <code style="color:var(--accent);">${escapeHtml(r.id)}</code> <button class="btn btn-ghost fp-copy-btn" data-copy-id="${escapeHtml(r.id)}">Copy</button>\n\n<small style="color:var(--text-3)">Use this Workspace ID in team operations. Copy and save it!</small>`;
+    featurePanel.setResult(result);
+    setTimeout(() => {
+      featurePanel.body.querySelectorAll('.fp-copy-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.copyId;
+          if (id) {
+            const ok = (ipc && typeof ipc.copy === 'function') ? ipc.copy(id) : (navigator.clipboard ? (navigator.clipboard.writeText(id).then(()=>true).catch(()=>false)) : false);
+            try { alert('Copied!'); } catch(e) {}
+          }
+        });
+      });
+    }, 50);
+    localStorage.setItem('lastWorkspaceId', r.id);
+  }).catch(e => featurePanel.setResult(`<span class="fp-badge error">✗</span> ${escapeHtml(e.message)}`));
+}
+
+function openPanel_teamAnalytics() {
+  featurePanel.open('team-analytics', '📊', 'Team Analytics', `
+    <div class="fp-section">
+      <div class="fp-section-title">Query</div>
+      ${fpField('Team ID', 'fp-ta-team', 'text', '')}
+      <div class="fp-actions">${fpBtn('Load Analytics', 'panelAction_teamAnalytics()')}</div>
+    </div>
+    ${fpResult()}
+  `);
+}
+function panelAction_teamAnalytics() {
+  const teamId = document.getElementById('fp-ta-team').value.trim();
+  ipc.invoke('team:analytics', { teamId }).then(r => featurePanel.setResult(`Queries: ${r.queries}\nUsers: ${r.users}\nAvg Latency: ${r.avgLatency}ms`)).catch(e => featurePanel.setResult(`<span class="fp-badge error">✗</span> ${escapeHtml(e.message)}`));
+}
+
+function openPanel_multiOrchestration() {
+  featurePanel.open('team-orchestration', '🔀', 'Multi-Service Orchestration', `
+    <div class="fp-section">
+      <div class="fp-section-title">Configure</div>
+      ${fpField('Services (comma-separated)', 'fp-orch-services', 'text', '')}
+      ${fpTextarea('Query', 'fp-orch-query', '', 3)}
+      <div class="fp-actions">${fpBtn('Execute', 'panelAction_orchestrate()')}</div>
+    </div>
+    ${fpResult()}
+  `);
+}
+function panelAction_orchestrate() {
+  const services = (document.getElementById('fp-orch-services').value || '').split(',').map(s => s.trim()).filter(Boolean);
+  const query = document.getElementById('fp-orch-query').value || '';
+  ipc.invoke('team:orchestrate', { services, query }).then(r => featurePanel.setResult(`Services: ${r.services}\nTotal Queries: ${r.totalQueries}`)).catch(e => featurePanel.setResult(`<span class="fp-badge error">✗</span> ${escapeHtml(e.message)}`));
+}
+
+function openPanel_aiDebug() {
+  featurePanel.open('ai-debug', '🤖', 'AI Debug Assistant', `
+    <div class="fp-section">
+      <div class="fp-section-title">What does this do?</div>
+      <p style="color:var(--text-2);font-size:11px;line-height:1.6">Analyzes queries, errors, or performance issues and provides AI-suggested fixes and optimizations.</p>
+    </div>
+    <div class="fp-section">
+      <div class="fp-section-title">Describe the Problem</div>
+      ${fpTextarea('Error or issue description', 'fp-ai-debug-input', '', 5)}
+      <div class="fp-actions">${fpBtn('Analyse', 'panelAction_aiDebug()')}</div>
+    </div>
+    ${fpResult()}
+  `);
+}
+
+function panelAction_aiDebug() {
+  const input = document.getElementById('fp-ai-debug-input').value.trim();
+  if (!input) return featurePanel.setResult('<span class="fp-badge error">Error</span> Please describe the issue');
+  ipc.invoke('ai:debug', { input }).then(r => {
+    const result = `<span class="fp-badge success">✓ Analysis</span>\n${escapeHtml(r.suggestion || 'No suggestions available')}`;
+    featurePanel.setResult(result);
+  }).catch(e => featurePanel.setResult(`<span class="fp-badge error">✗</span> ${escapeHtml(e.message)}`));
+}
+
+function openPanel_aiNLToQuery() {
+  featurePanel.open('ai-nl', '✨', 'Natural Language → Piql', `
+    <div class="fp-section">
+      <div class="fp-section-title">Describe your query in plain English</div>
+      ${fpTextarea('e.g. "Get all users who posted in the last 7 days"', 'fp-nl-input', '', 4)}
+      <div class="fp-actions">${fpBtn('Generate Query', 'panelAction_nlToQuery()')}${fpBtn('Insert into Editor', 'panelAction_nlInsert()', 'ghost')}</div>
+    </div>
+    ${fpResult()}
+  `);
+}
+function panelAction_nlToQuery() {
+  const input = document.getElementById('fp-nl-input').value || '';
+  ipc.invoke('ai:nl-query', { input }).then(r => featurePanel.setResult(r.query || r.result || JSON.stringify(r))).catch(e => featurePanel.setResult(`<span class="fp-badge error">✗</span> ${escapeHtml(e.message)}`));
+}
+function panelAction_nlInsert() {
+  const text = document.getElementById('fp-result-area')?.textContent || '';
+  if (text) setEditorContent(text);
+}
+
+function openPanel_aiOptimize() {
+  featurePanel.open('ai-optimize', '⚡', 'AI Optimize Query', `<div class="fp-section"><div class="fp-section-title">Optimise</div><p style="color:var(--text-2);font-size:11px">Uses the query currently in the editor.</p><div class="fp-actions">${fpBtn('Optimise', 'panelAction_aiOptimize()')}</div></div>${fpResult()}`);
+}
+function panelAction_aiOptimize() {
+  const query = getEditorContent();
+  ipc.invoke('ai:optimize', { query }).then(r => featurePanel.setResult(r.optimized || r.result || JSON.stringify(r))).catch(e => featurePanel.setResult(`<span class="fp-badge error">✗</span> ${escapeHtml(e.message)}`));
+}
+
+function openPanel_obsLatency() {
+  featurePanel.open('obs-latency', '📈', 'Latency Statistics', `${fpField('Time Window (minutes)', 'fp-obs-window', 'number', '60')}<div class="fp-actions">${fpBtn('Load Stats', 'panelAction_obsLatency()')}</div>${fpResult()}`);
+}
+function panelAction_obsLatency() { const w = parseInt(document.getElementById('fp-obs-window').value || '60'); ipc.invoke('obs:latency', { window: w }).then(r => featurePanel.setResult(`P50: ${r.p50}ms\nP95: ${r.p95}ms\nP99: ${r.p99}ms`)).catch(e => featurePanel.setResult(`<span class="fp-badge error">✗</span> ${escapeHtml(e.message)}`)); }
+
+function openPanel_obsExecutionGraph() { featurePanel.open('obs-graph', '🕸️', 'Execution Graph', `${fpField('Query ID', 'fp-obs-qid', 'text', '')}<div class="fp-actions">${fpBtn('Render Graph', 'panelAction_obsGraph()')}</div><div class="fp-section"><div class="fp-section-title">Graph</div><div id="fp-obs-graph-canvas" style="background:var(--bg-0);border:1px solid var(--border);border-radius:5px;min-height:200px;padding:10px;font-family:monospace;font-size:11px;color:var(--text-2)">Run a trace to see the execution graph.</div></div>`); }
+function panelAction_obsGraph() { const qid = document.getElementById('fp-obs-qid').value || ''; ipc.invoke('obs:execution-graph', { queryId: qid }).then(r => { const c = document.getElementById('fp-obs-graph-canvas'); if (c) c.textContent = JSON.stringify(r, null, 2); }).catch(e => featurePanel.setResult(`<span class="fp-badge error">✗</span> ${escapeHtml(e.message)}`)); }
+
+function openPanel_secDepth() { featurePanel.open('sec-depth', '🛡️', 'Query Depth Check', `${fpField('Max Allowed Depth', 'fp-sec-depth', 'number', '5')}<p style="color:var(--text-2);font-size:11px">Checks the query currently in the editor.</p><div class="fp-actions">${fpBtn('Check Depth', 'panelAction_secDepth()')}</div>${fpResult()}`); }
+function panelAction_secDepth() { const maxDepth = parseInt(document.getElementById('fp-sec-depth').value || '5'); const query = getEditorContent(); ipc.invoke('security:depth-check', { query, maxDepth }).then(r => featurePanel.setResult(`<span class="fp-badge ${r.safe? 'success':''}">${r.safe? '✓ Safe':'✗ Too Deep'}</span>\nDepth: ${r.depth} / Max: ${maxDepth}`)).catch(e => featurePanel.setResult(`<span class="fp-badge error">✗</span> ${escapeHtml(e.message)}`)); }
+
+function openPanel_secAuditLog() { featurePanel.open('sec-audit', '📋', 'Audit Log', `${fpField('User (leave blank for all)', 'fp-audit-user', 'text', '')}${fpField('Last N entries', 'fp-audit-n', 'number', '50')}<div class="fp-actions">${fpBtn('Load Log', 'panelAction_auditLog()')}</div>${fpResult()}`); }
+function panelAction_auditLog() { const user = document.getElementById('fp-audit-user').value.trim(); const n = parseInt(document.getElementById('fp-audit-n').value || '50'); ipc.invoke('security:audit-log', { user, n }).then(r => featurePanel.setResult((r.entries||[]).map(e => `[${e.ts}] ${e.user} ${e.action}`).join('\n') || '(no entries)')).catch(e => featurePanel.setResult(`<span class="fp-badge error">✗</span> ${escapeHtml(e.message)}`)); }
+
+function openPanel_sdkGenerate() { featurePanel.open('sdk-gen', '📦', 'Generate SDK', `${fpSelect('Target Language','fp-sdk-lang',[{v:'typescript',l:'TypeScript'},{v:'python',l:'Python'},{v:'go',l:'Go'},{v:'rust',l:'Rust'},{v:'java',l:'Java'}])}${fpField('SDK Name / Package','fp-sdk-name','text','my-piql-sdk')}<div class="fp-actions">${fpBtn('Generate','panelAction_sdkGenerate()')}${fpBtn('Copy','panelAction_sdkCopy()','ghost')}</div>${fpResult()}`); }
+function panelAction_sdkGenerate(){ const lang=document.getElementById('fp-sdk-lang').value; const name=document.getElementById('fp-sdk-name').value; ipc.invoke('sdk:generate',{lang,name}).then(r=>featurePanel.setResult(r.code||r.result||JSON.stringify(r))).catch(e=>featurePanel.setResult(`<span class="fp-badge error">✗</span> ${escapeHtml(e.message)}`)); }
+function panelAction_sdkCopy(){ const t=document.getElementById('fp-result-area')?.textContent; if(t) navigator.clipboard.writeText(t); }
+
+function openPanel_sdkWebhook(){ featurePanel.open('sdk-webhook','🪝','Create Webhook', `${fpField('Endpoint URL','fp-wh-url','url','https://')}${fpField('Event Type','fp-wh-event','text','query.complete')}${fpSelect('Method','fp-wh-method',[{v:'POST',l:'POST'},{v:'PUT',l:'PUT'}])}<div class="fp-actions">${fpBtn('Register Webhook','panelAction_createWebhook()')}</div>${fpResult()}`); }
+function panelAction_createWebhook(){ const url=document.getElementById('fp-wh-url').value; const event=document.getElementById('fp-wh-event').value; const method=document.getElementById('fp-wh-method').value; ipc.invoke('sdk:webhook-create',{url,event,method}).then(r=>featurePanel.setResult(`<span class="fp-badge success">✓ Registered</span>\nID: ${escapeHtml(r.id)}\nURL: ${escapeHtml(url)}`)).catch(e=>featurePanel.setResult(`<span class="fp-badge error">✗</span> ${escapeHtml(e.message)}`)); }
+
+function openPanel_vizGraph(){ featurePanel.open('viz-graph','🕸️','Graph Visualization', `${fpSelect('Layout','fp-viz-layout',[{v:'force',l:'Force-Directed'},{v:'tree',l:'Tree'},{v:'radial',l:'Radial'}])}${fpField('Max Nodes','fp-viz-nodes','number','100')}<div class="fp-actions">${fpBtn('Render','panelAction_vizGraph()')}${fpBtn('Export SVG','panelAction_vizExport()','ghost')}</div><div class="fp-section"><div class="fp-section-title">Canvas</div><div id="fp-viz-canvas" style="background:var(--bg-0);border:1px solid var(--border);border-radius:5px;height:280px;display:flex;align-items:center;justify-content:center;color:var(--text-3)">Click Render to visualise the current schema</div></div>`); }
+function panelAction_vizGraph(){ const layout=document.getElementById('fp-viz-layout').value; const max=parseInt(document.getElementById('fp-viz-nodes').value||'100'); ipc.invoke('viz:schema-graph',{layout,max}).then(r=>{ const c=document.getElementById('fp-viz-canvas'); if(c && r.svg) c.innerHTML = sanitizeHTML(r.svg); else if(c) c.textContent = JSON.stringify(r,null,2); }).catch(e=>{ const c=document.getElementById('fp-viz-canvas'); if(c) c.textContent=`Error: ${e.message}`; }); }
+function panelAction_vizExport(){ const svg=document.querySelector('#fp-viz-canvas svg'); if(!svg) return; const blob=new Blob([svg.outerHTML],{type:'image/svg+xml'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='piql-graph.svg'; a.click(); }
+
+function openPanel_vizERD(){ featurePanel.open('viz-erd','🗺️','Entity Relationship Diagram', `${fpField('','fp-erd-dummy','text','')}<div class="fp-actions">${fpBtn('Generate ERD','panelAction_vizERD()')}${fpBtn('Export PNG','panelAction_vizERDExport()','ghost')}</div><div id="fp-erd-canvas" style="background:var(--bg-0);border:1px solid var(--border);border-radius:5px;min-height:240px;margin-top:10px;padding:12px;font-family:monospace;font-size:10px;white-space:pre;overflow:auto;color:var(--text-1)">Click Generate ERD…</div>`); }
+function panelAction_vizERD(){ ipc.invoke('viz:erd').then(r=>{ const c=document.getElementById('fp-erd-canvas'); if(c) c.innerHTML = (r.svg ? sanitizeHTML(r.svg) : `<pre>${escapeHtml(JSON.stringify(r,null,2))}</pre>`); }).catch(e=>{ const c=document.getElementById('fp-erd-canvas'); if(c) c.textContent=`Error: ${e.message}`; }); }
+
+function openPanel_fieldUsageAnalytics(){ featurePanel.open('db-field-usage','🔍','Field Usage Analytics', `${fpField('Type / Collection','fp-fu-type','text','')}<div class="fp-actions">${fpBtn('Analyse','panelAction_fieldUsage()')}</div>${fpResult()}`); }
+function panelAction_fieldUsage(){ const type=document.getElementById('fp-fu-type').value||''; ipc.invoke('schema:field-usage',{type}).then(r=>{ const lines=Object.entries(r.usage||{}).map(([f,c])=>`${f.padEnd(24)} ${c} queries`).join('\n'); featurePanel.setResult(lines||'(no data)'); }).catch(e=>featurePanel.setResult(`<span class="fp-badge error">✗</span> ${escapeHtml(e.message)}`)); }
+
+function openPanel_schemaDiff(){ featurePanel.open('db-schema-diff','🔀','Schema Diff / Version', `${fpField('Version A (leave blank for current)','fp-sd-a','text','')}${fpField('Version B (leave blank for previous)','fp-sd-b','text','')}<div class="fp-actions">${fpBtn('Show Diff','panelAction_schemaDiff()')}</div>${fpResult()}`); }
+function panelAction_schemaDiff(){ const a=document.getElementById('fp-sd-a').value||''; const b=document.getElementById('fp-sd-b').value||''; ipc.invoke('schema:diff',{a,b}).then(r=>featurePanel.setResult(r.diff||'(no differences)')).catch(e=>featurePanel.setResult(`<span class="fp-badge error">✗</span> ${escapeHtml(e.message)}`)); }
+
+async function submitFpCreateDb() {
+  const nameEl = featurePanel.body.querySelector('#fp-db-name');
+  const descEl = featurePanel.body.querySelector('#fp-db-desc');
+  const resultEl = featurePanel.body.querySelector('#fp-result-area');
+  const btn = featurePanel.body.querySelector('#fp-create-btn');
+  if (!nameEl || !btn || !resultEl) return;
+
+  const name = nameEl.value.trim();
+  const desc = descEl.value.trim();
+  if (!name) {
+    resultEl.innerHTML = '<span class="fp-badge error">Error</span> Name is required.';
+    nameEl.focus();
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerText = 'Creating...';
+  try {
+    const created = await ipc.invoke('db:create', { name, description: desc });
+    // Reload local list from disk to keep frontend in sync
+    databases = await ipc.invoke('db:load');
+    activeDbId = created.id;
+    renderDbTree();
+    renderSchema();
+    document.getElementById('conn-label').textContent = created.name;
+
+    resultEl.innerHTML = '<span class="fp-badge success">Created</span> Database "' + escapeHtml(created.name) + '" created.';
+    setTimeout(() => featurePanel.close(), 800);
+  } catch (e) {
+    resultEl.innerHTML = '<span class="fp-badge error">Error</span> ' + escapeHtml(e.message || 'Failed to create database');
+  } finally {
+    btn.disabled = false;
+    btn.innerText = 'Create';
+  }
+}
+
+// ===== SIDEBAR TABS =====
+function switchSidebarTab(name) {
+  document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.toggle('active', t.dataset.panel === name));
+  document.querySelectorAll('.sidebar-panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
+}
+
+// ===== MODALS =====
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ===== RESIZE =====
+function setupResizeHandle() {
+  const handle = document.getElementById('results-resize');
+  const pane = document.getElementById('results-pane');
+  let dragging = false, startY, startH;
+
+  handle.addEventListener('mousedown', e => {
+    dragging = true; startY = e.clientY; startH = pane.offsetHeight;
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+  });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const diff = startY - e.clientY;
+    const newH = Math.max(100, Math.min(600, startH + diff));
+    pane.style.height = newH + 'px';
+  });
+  document.addEventListener('mouseup', () => {
+    dragging = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  });
+}
+
+// ===== UTILS =====
+function escapeHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+});
+
+// Keyboard shortcut: Escape closes modals
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+});
+
+// ===== START =====
+init().catch(console.error);
+</script>
+</body>
+</html>

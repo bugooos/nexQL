@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Piql Workbench
+Comment=Professional IDE for Piql — Packed Query Language
+Exec=/opt/piql-workbench/launch.sh
+Icon=/opt/piql-workbench/icon.png
+Terminal=false
+Type=Application
+Categories=Development;IDE;Database;
+Keywords=piql;nql;database;query;ide;
+StartupWMClass=piql-workbench

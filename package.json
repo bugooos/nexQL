@@ -1,0 +1,49 @@
+{
+  "name": "piql-workbench",
+  "version": "0.2.0",
+  "description": "Piql Workbench — Professional IDE for Packed Query Language",
+  "main": "ide/electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "start:runtime": "python3 -m nexql.runtime.server_entry --stdio",
+    "start:http": "python3 -m nexql.runtime.server_entry --port 7890",
+    "test": "python3 -m pytest nexql/tests/ -v",
+    "test:parser": "python3 -m pytest nexql/tests/test_pipeline.py::TestParser -v",
+    "test:executor": "python3 -m pytest nexql/tests/test_pipeline.py::TestExecutor -v",
+    "build": "electron-builder --linux",
+    "build:appimage": "electron-builder --linux AppImage",
+    "build:deb": "electron-builder --linux deb",
+    "lint": "python3 -m py_compile nexql/**/*.py"
+  },
+  "build": {
+    "appId": "io.piql.workbench",
+    "productName": "Piql Workbench",
+    "directories": { "output": "dist" },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Development",
+      "description": "Professional IDE for Piql — Packed Query Language"
+    },
+    "files": [
+      "ide/electron/main.js",
+      "ide/frontend/index.html",
+      "ide/frontend/preload.js",
+      "ide/ipc/bridge.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "nexql/",
+        "to": "nexql/",
+        "filter": ["**/*.py"]
+      }
+    ]
+  },
+  "devDependencies": {
+    "electron": "^36.2.1",
+    "electron-builder": "^26.0.12"
+  },
+  "keywords": ["piql", "nql", "database", "query", "ide", "workbench"],
+  "author": "Piql Labs",
+  "license": "Apache-2.0"
+}
