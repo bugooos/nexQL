@@ -5,3 +5,11 @@ build/
 __pycache__/
 *.pyc
 .vscode/
+
+# Development & tooling artifacts — not shipped to production
+tooling/
+tests/
+launch.sh
+nexql-workbench.desktop
+.agent.md
+go
